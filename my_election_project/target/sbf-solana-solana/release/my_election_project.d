@@ -1,0 +1,1 @@
+/Users/wikusia/Desktop/my-election-app/my_election_project/target/sbf-solana-solana/release/my_election_project.so: /Users/wikusia/Desktop/my-election-app/my_election_project/programs/my_election_project/src/lib.rs

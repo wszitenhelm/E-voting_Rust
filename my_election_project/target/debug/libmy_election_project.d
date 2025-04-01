@@ -1,0 +1,1 @@
+/Users/wikusia/Desktop/my-election-app/my_election_project/target/debug/libmy_election_project.dylib: /Users/wikusia/Desktop/my-election-app/my_election_project/programs/my_election_project/src/lib.rs
