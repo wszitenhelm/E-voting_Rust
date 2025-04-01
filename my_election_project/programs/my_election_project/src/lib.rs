@@ -113,60 +113,64 @@ mod voting_program {
             return Err(ErrorCode::VoterAlreadyRegistered.into());
         }
     
-        // Loop through all instructions to find an Ed25519SigVerify instruction
-        let mut signature_verified = false;
-        for i in 0..instructions.data_len() {
-            let instruction = match solana_program::sysvar::instructions::load_instruction_at_checked(i, instructions) {
-                Ok(instr) => instr,
-                Err(_) => continue, // Skip if instruction can't be loaded
-            };
+        // // Loop through all instructions to find an Ed25519SigVerify instruction
+        // let mut signature_verified = false;
+        // for i in 0..instructions.data_len() {
+        //     let instruction = match solana_program::sysvar::instructions::load_instruction_at_checked(i, instructions) {
+        //         Ok(instr) => instr,
+        //         Err(_) => continue, // Skip if instruction can't be loaded
+        //     };
     
-            // Ensure it's an Ed25519SigVerify instruction
-            if instruction.program_id != solana_program::ed25519_program::id() {
-                continue;
-            }
+        //     // Ensure it's an Ed25519SigVerify instruction
+        //     if instruction.program_id != solana_program::ed25519_program::id() {
+        //         continue;
+        //     }
     
-            let sig_data = &instruction.data;
+        //     let sig_data = &instruction.data;
     
-            // Ensure signature data length is valid
-            if sig_data.len() < 96 {
-                msg!("Error: Signature data too short!");
-                return Err(ProgramError::InvalidInstructionData.into());
-            }
+        //     // Ensure signature data length is valid
+        //     if sig_data.len() < 96 {
+        //         msg!("Error: Signature data too short!");
+        //         return Err(ProgramError::InvalidInstructionData.into());
+        //     }
     
-            // Extract the public key that signed the message
-            let signed_pubkey = Pubkey::from(<[u8; 32]>::try_from(&sig_data[64..96]).unwrap());
+        //     // Extract the public key that signed the message
+        //     let signed_pubkey = Pubkey::from(<[u8; 32]>::try_from(&sig_data[64..96]).unwrap());
 
-            // Ensure the public key matches the Voting Authority
-            if signed_pubkey != voting_authority {
-                msg!("Error: Signature is not from the expected Voting Authority!");
-                return Err(ProgramError::InvalidInstructionData.into());
-            }
+        //     // Ensure the public key matches the Voting Authority
+        //     if signed_pubkey != voting_authority {
+        //         msg!("Error: Signature is not from the expected Voting Authority!");
+        //         return Err(ProgramError::InvalidInstructionData.into());
+        //     }
     
-            // Extract the signed message (skip signature, public key, and padding)
-            let signed_message = &sig_data[96..];
+        //     // Extract the signed message (skip signature, public key, and padding)
+        //     let signed_message = &sig_data[96..];
 
-            let mut expected_message = Vec::new();
-            expected_message.extend_from_slice(&voter_public_key.to_bytes()); // 32 bytes
-            expected_message.extend_from_slice(&voter_stake.to_le_bytes());   // 8 bytes
-            expected_message.extend_from_slice(election.election_id.as_bytes());
+        //     let mut expected_message = Vec::new();
+        //     expected_message.extend_from_slice(&voter_public_key.to_bytes()); // 32 bytes
+        //     expected_message.extend_from_slice(&voter_stake.to_le_bytes());   // 8 bytes
+        //     expected_message.extend_from_slice(election.election_id.as_bytes());
     
-            // Verify the signed message
-            if signed_message != expected_message {
-                msg!("Error: Signature does not match expected message!");
-                return Err(ProgramError::InvalidInstructionData.into());
-            }
+        //     // Verify the signed message
+        //     if signed_message != expected_message {
+        //         msg!("Error: Signature does not match expected message!");
+        //         return Err(ProgramError::InvalidInstructionData.into());
+        //     }
     
-            msg!("✅ Verified Ed25519 signature from Voting Authority!");
-            signature_verified = true;
-            break; // Exit loop after verification
-        }
+        //     msg!("✅ Verified Ed25519 signature from Voting Authority!");
+        //     signature_verified = true;
+        //     break; // Exit loop after verification
+        // }
     
-        // If no valid signature was found, return an error
-        if !signature_verified {
-            msg!("Error: No valid Ed25519SigVerify instruction found!");
-            return Err(ProgramError::InvalidInstructionData.into());
-        }
+        // // If no valid signature was found, return an error
+        // if !signature_verified {
+        //     msg!("Error: No valid Ed25519SigVerify instruction found!");
+        //     return Err(ProgramError::InvalidInstructionData.into());
+        // }
+
+        // Verify the signature using the helper function
+        verify_signature(instructions, &voting_authority, &voter_public_key, voter_stake, &election.election_id)?;
+
     
         // Register the voter after verification
         let voter: &mut Account<'_, Voter> = &mut ctx.accounts.voter;
@@ -213,6 +217,71 @@ pub fn check_admin(election: &Election, user: &Signer) -> Result<()> {
         return Err(ErrorCode::Unauthorized.into());
     }
     Ok(())
+}
+
+pub fn verify_signature(
+    instructions: &AccountInfo,
+    expected_signer: &Pubkey,
+    voter_public_key: &Pubkey,
+    voter_stake: u64,
+    election_id: &str,
+) -> Result<bool> {
+    // Loop through all instructions to find an Ed25519SigVerify instruction
+    let mut signature_verified = false;
+    for i in 0..instructions.data_len() {
+        let instruction = match solana_program::sysvar::instructions::load_instruction_at_checked(i, instructions) {
+            Ok(instr) => instr,
+            Err(_) => continue, // Skip if instruction can't be loaded
+        };
+
+        // Ensure it's an Ed25519SigVerify instruction
+        if instruction.program_id != solana_program::ed25519_program::id() {
+            continue;
+        }
+
+        let sig_data = &instruction.data;
+
+        // Ensure signature data length is valid
+        if sig_data.len() < 96 {
+            msg!("Error: Signature data too short!");
+            return Err(ProgramError::InvalidInstructionData.into());
+        }
+
+        // Extract the public key that signed the message
+        let signed_pubkey = Pubkey::from(<[u8; 32]>::try_from(&sig_data[64..96]).unwrap());
+
+        // Ensure the public key matches the expected signer (Voting Authority)
+        if signed_pubkey != *expected_signer {
+            msg!("Error: Signature is not from the expected Voting Authority!");
+            return Err(ProgramError::InvalidInstructionData.into());
+        }
+
+        // Extract the signed message (skip signature, public key, and padding)
+        let signed_message = &sig_data[96..];
+
+        let mut expected_message = Vec::new();
+        expected_message.extend_from_slice(&voter_public_key.to_bytes()); // 32 bytes
+        expected_message.extend_from_slice(&voter_stake.to_le_bytes());   // 8 bytes
+        expected_message.extend_from_slice(election_id.as_bytes());
+
+        // Verify the signed message
+        if signed_message != expected_message {
+            msg!("Error: Signature does not match expected message!");
+            return Err(ProgramError::InvalidInstructionData.into());
+        }
+
+        msg!("✅ Verified Ed25519 signature from Voting Authority!");
+        signature_verified = true;
+        break; // Exit loop after verification
+    }
+
+    // If no valid signature was found, return an error
+    if !signature_verified {
+        msg!("Error: No valid Ed25519SigVerify instruction found!");
+        return Err(ProgramError::InvalidInstructionData.into());
+    }
+
+    Ok(true)
 }
 
 
