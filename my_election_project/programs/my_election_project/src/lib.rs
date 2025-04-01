@@ -1,5 +1,10 @@
 #![allow(unexpected_cfgs)]
 use anchor_lang::prelude::*;
+use solana_program::{
+    account_info::AccountInfo,
+    sysvar::Sysvar,
+    program_error::ProgramError,
+};
 
 declare_id!("8bP99pZpRyWi7np5oe5uvxfsByNQscFdbwPxhrzuf75i"); // Temporary for testing.
 
@@ -82,21 +87,24 @@ mod voting_program {
         voter_public_key: Pubkey,
         voter_stake: u64,
     ) -> Result<()> {
-        // pass election to check if it's active as registering only before it's active
+        // Access accounts
+        //  extract voting_authority into a variable before borrowing election mutably:
+        let voting_authority = ctx.accounts.election.voting_authority.key(); // Immutable borrow
         let election = &mut ctx.accounts.election;
         let registered_voters = &mut ctx.accounts.registered_voters;
-
+        let instructions = &ctx.accounts.instructions_sysvar;
+    
         // Ensure election is not active
         if election.is_active {
             return Err(ErrorCode::VotingAlreadyStarted.into());
         }
-
-        // Ensure the user calling the function is the voting authority (VA)
+    
+        // Ensure the user calling the function is the Voting Authority (VA)
         let user = &ctx.accounts.user;
         if election.voting_authority != *user.key {
-            return Err(ErrorCode::Unauthorized.into()); // Ensure only the VA can register voters
+            return Err(ErrorCode::Unauthorized.into());
         }
-
+    
         // Check if the voter is already registered
         if registered_voters
             .registered_addresses
@@ -104,38 +112,94 @@ mod voting_program {
         {
             return Err(ErrorCode::VoterAlreadyRegistered.into());
         }
+    
+        // Loop through all instructions to find an Ed25519SigVerify instruction
+        let mut signature_verified = false;
+        for i in 0..instructions.data_len() {
+            let instruction = match solana_program::sysvar::instructions::load_instruction_at_checked(i, instructions) {
+                Ok(instr) => instr,
+                Err(_) => continue, // Skip if instruction can't be loaded
+            };
+    
+            // Ensure it's an Ed25519SigVerify instruction
+            if instruction.program_id != solana_program::ed25519_program::id() {
+                continue;
+            }
+    
+            let sig_data = &instruction.data;
+    
+            // Ensure signature data length is valid
+            if sig_data.len() < 96 {
+                msg!("Error: Signature data too short!");
+                return Err(ProgramError::InvalidInstructionData.into());
+            }
+    
+            // Extract the public key that signed the message
+            let signed_pubkey = Pubkey::from(<[u8; 32]>::try_from(&sig_data[64..96]).unwrap());
 
+            // Ensure the public key matches the Voting Authority
+            if signed_pubkey != voting_authority {
+                msg!("Error: Signature is not from the expected Voting Authority!");
+                return Err(ProgramError::InvalidInstructionData.into());
+            }
+    
+            // Extract the signed message (skip signature, public key, and padding)
+            let signed_message = &sig_data[96..];
+
+            let mut expected_message = Vec::new();
+            expected_message.extend_from_slice(&voter_public_key.to_bytes()); // 32 bytes
+            expected_message.extend_from_slice(&voter_stake.to_le_bytes());   // 8 bytes
+            expected_message.extend_from_slice(election.election_id.as_bytes());
+    
+            // Verify the signed message
+            if signed_message != expected_message {
+                msg!("Error: Signature does not match expected message!");
+                return Err(ProgramError::InvalidInstructionData.into());
+            }
+    
+            msg!("✅ Verified Ed25519 signature from Voting Authority!");
+            signature_verified = true;
+            break; // Exit loop after verification
+        }
+    
+        // If no valid signature was found, return an error
+        if !signature_verified {
+            msg!("Error: No valid Ed25519SigVerify instruction found!");
+            return Err(ProgramError::InvalidInstructionData.into());
+        }
+    
+        // Register the voter after verification
         let voter: &mut Account<'_, Voter> = &mut ctx.accounts.voter;
-
+    
         // Ensure PDA is correctly derived (for debugging & verification)
         let (expected_voter_pda, _bump) =
             Pubkey::find_program_address(&[b"voter", voter_public_key.as_ref()], &crate::ID);
-
+    
         if expected_voter_pda != voter.key() {
             return Err(ErrorCode::InvalidPDA.into());
         }
-
+    
         // Prevent re-initialization attack
         if voter.voter_address != Pubkey::default() {
             return Err(ErrorCode::VoterAlreadyRegistered.into());
         }
-
-        // Initialize the voter's account with default values (commitment, vote, etc.)
-        let registered_voter = &mut ctx.accounts.voter;
-        registered_voter.voter_address = voter_public_key; // Voter's public key
-        registered_voter.has_committed = false;
-        registered_voter.has_revealed = false;
-        registered_voter.commitment = Vec::new(); // Empty commitment at the start
-        registered_voter.vote = None; // No vote cast initially
-        registered_voter.voter_stake = voter_stake;
-
+    
+        // Initialize the voter's account with default values
+        voter.voter_address = voter_public_key;
+        voter.has_committed = false;
+        voter.has_revealed = false;
+        voter.commitment = Vec::new();
+        voter.vote = None;
+        voter.voter_stake = voter_stake;
+    
         // Add voter to registered voters list
         registered_voters
             .registered_addresses
-            .push(voter_public_key);       
-
+            .push(voter_public_key);
+    
         Ok(())
     }
+    
 
     pub fn get_election_id(ctx: Context<GetElectionId>) -> Result<String> {
         let election = &ctx.accounts.election;
@@ -150,7 +214,6 @@ pub fn check_admin(election: &Election, user: &Signer) -> Result<()> {
     }
     Ok(())
 }
-
 
 
 #[derive(Accounts)]
@@ -198,6 +261,9 @@ pub struct RegisterVoter<'info> {
     #[account(mut, signer)]
     pub user: Signer<'info>, // The user registering the voter (Voting Authority)
     pub system_program: Program<'info, System>,
+    /// CHECK: This is the instructions sysvar, which is read-only and required for Ed25519 signature verification.
+    #[account(address = solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
