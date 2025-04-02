@@ -14,6 +14,44 @@ export type VotingProgram = {
   },
   "instructions": [
     {
+      "name": "commitVote",
+      "discriminator": [
+        134,
+        97,
+        90,
+        126,
+        91,
+        66,
+        16,
+        26
+      ],
+      "accounts": [
+        {
+          "name": "voterPda",
+          "writable": true
+        },
+        {
+          "name": "election",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "instructionsSysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "commitment",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
       "name": "endVoting",
       "discriminator": [
         161,
@@ -64,16 +102,16 @@ export type VotingProgram = {
       "returns": "string"
     },
     {
-      "name": "getVotingAuthority",
+      "name": "getVotingAuthorityPublicKey",
       "discriminator": [
-        88,
-        21,
-        27,
-        7,
-        73,
-        250,
-        210,
-        29
+        83,
+        192,
+        162,
+        248,
+        120,
+        177,
+        13,
+        165
       ],
       "accounts": [
         {
@@ -458,6 +496,12 @@ export type VotingProgram = {
           {
             "name": "commitment",
             "type": "bytes"
+          },
+          {
+            "name": "encryptedVote",
+            "type": {
+              "option": "bytes"
+            }
           },
           {
             "name": "vote",

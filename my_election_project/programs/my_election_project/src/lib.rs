@@ -89,7 +89,8 @@ mod voting_program {
     ) -> Result<()> {
         // Access accounts
         //  extract voting_authority into a variable before borrowing election mutably:
-        let voting_authority = ctx.accounts.election.voting_authority.key(); // Immutable borrow
+        //let voting_authority = ctx.accounts.election.voting_authority.key(); // Immutable borrow
+        let voting_authority = ctx.accounts.election.voting_authority; // Immutable borrow
         let election = &mut ctx.accounts.election;
         let registered_voters = &mut ctx.accounts.registered_voters;
         let instructions = &ctx.accounts.instructions_sysvar;
@@ -114,7 +115,19 @@ mod voting_program {
         }
     
         // Verify the signature using the helper function
-        verify_signature(instructions, &voting_authority, &voter_public_key, voter_stake, &election.election_id)?;
+        //verify_signature(instructions, &voting_authority, &voter_public_key, voter_stake, &election.election_id)?;
+
+        // Assuming you have these values from your context
+        let expected_signer = voting_authority;
+
+        let mut expected_message = Vec::new();
+        expected_message.extend_from_slice(&voter_public_key.to_bytes());  // Voter's public key
+        expected_message.extend_from_slice(&voter_stake.to_le_bytes());   // Voter's stake
+        expected_message.extend_from_slice(election.election_id.as_bytes());       // Election ID
+
+        // Call the verify_signature function with these parameters
+        verify_signature(instructions, &expected_signer, &expected_message)?;
+
 
         // Register the voter after verification
         let voter: &mut Account<'_, Voter> = &mut ctx.accounts.voter;
@@ -139,6 +152,7 @@ mod voting_program {
         voter.commitment = Vec::new();
         voter.vote = None;
         voter.voter_stake = voter_stake;
+        voter.encrypted_vote = None;
     
         // Add voter to registered voters list
         registered_voters
@@ -159,6 +173,42 @@ mod voting_program {
         Ok(election.voting_authority) // doesn't need cloning as Pubkey implementes Copy 
     }
 
+    pub fn commit_vote(ctx: Context<CommitVote>, commitment: Vec<u8>) -> Result<()> {
+        let voter = &mut ctx.accounts.voter_pda;
+        let election = &ctx.accounts.election;
+        let user = &ctx.accounts.user;
+        let instructions = &ctx.accounts.instructions_sysvar;
+
+        let voting_authority = ctx.accounts.election.voting_authority; // Immutable borrow
+        
+        let expected_signer = voting_authority;
+
+        let mut expected_message = Vec::new();
+        expected_message.extend_from_slice(&voter.voter_address.to_bytes());  // Voter's public key
+        expected_message.extend_from_slice(&voter.voter_stake.to_le_bytes());   // Voter's stake
+        expected_message.extend_from_slice(election.election_id.as_bytes());       // Election ID
+
+        // Call the verify_signature function to check if Voter provided correct certficate signed by VA
+        // and called Ed25519SigVerify before 
+        verify_signature(instructions, &expected_signer, &expected_message)?;
+    
+
+        // Call the verify_signature function to check if Voter signed the hash 
+        // and called Ed25519SigVerify before 
+        let expected_signer_voter = voter.voter_address;
+
+        verify_signature(instructions, &expected_signer_voter, &commitment)?;
+
+    
+        // Step 3: Update the Voter account with the commitment and other fields
+        voter.commitment = commitment;
+        voter.has_committed = true; // Mark that the voter has committed their vote
+
+        msg!("Vote committed successfully for voter: {:?}", user.key());
+        Ok(())
+    }
+    
+
 }
 
 pub fn check_admin(election: &Election, user: &Signer) -> Result<()> {
@@ -168,29 +218,30 @@ pub fn check_admin(election: &Election, user: &Signer) -> Result<()> {
     Ok(())
 }
 
+
 pub fn verify_signature(
     instructions: &AccountInfo,
     expected_signer: &Pubkey,
-    voter_public_key: &Pubkey,
-    voter_stake: u64,
-    election_id: &str,
+    expected_message: &[u8],
 ) -> Result<bool> {
-    // Loop through all instructions to find an Ed25519SigVerify instruction
     let mut signature_verified = false;
+
+    // Loop through the instructions to find the signature verification instruction
     for i in 0..instructions.data_len() {
+        // Load the instruction at the given index
         let instruction = match solana_program::sysvar::instructions::load_instruction_at_checked(i, instructions) {
             Ok(instr) => instr,
-            Err(_) => continue, // Skip if instruction can't be loaded
+            Err(_) => continue,  // Skip if the instruction can't be loaded
         };
 
-        // Ensure it's an Ed25519SigVerify instruction
+        // Check if it's an Ed25519SigVerify instruction
         if instruction.program_id != solana_program::ed25519_program::id() {
             continue;
         }
 
         let sig_data = &instruction.data;
 
-        // Ensure signature data length is valid
+        // Ensure signature data length is valid (length should include public key and signature)
         if sig_data.len() < 96 {
             msg!("Error: Signature data too short!");
             return Err(ProgramError::InvalidInstructionData.into());
@@ -199,29 +250,24 @@ pub fn verify_signature(
         // Extract the public key that signed the message
         let signed_pubkey = Pubkey::from(<[u8; 32]>::try_from(&sig_data[64..96]).unwrap());
 
-        // Ensure the public key matches the expected signer (Voting Authority)
+        // Ensure the extracted public key matches the expected signer
         if signed_pubkey != *expected_signer {
-            msg!("Error: Signature is not from the expected Voting Authority!");
+            msg!("Error: Signature is not from the expected signer!");
             return Err(ProgramError::InvalidInstructionData.into());
         }
 
-        // Extract the signed message (skip signature, public key, and padding)
+        // Extract the signed message from the signature data
         let signed_message = &sig_data[96..];
 
-        let mut expected_message = Vec::new();
-        expected_message.extend_from_slice(&voter_public_key.to_bytes()); // 32 bytes
-        expected_message.extend_from_slice(&voter_stake.to_le_bytes());   // 8 bytes
-        expected_message.extend_from_slice(election_id.as_bytes());
-
-        // Verify the signed message
+        // Verify if the signed message matches the expected message
         if signed_message != expected_message {
-            msg!("Error: Signature does not match expected message!");
+            msg!("Error: Signature does not match the expected message!");
             return Err(ProgramError::InvalidInstructionData.into());
         }
 
-        msg!("Verified Ed25519 signature from Voting Authority!");
+        msg!("Verified Ed25519 signature from the expected signer!");
         signature_verified = true;
-        break; // Exit loop after verification
+        break;  // Exit the loop after verification
     }
 
     // If no valid signature was found, return an error
@@ -297,6 +343,19 @@ pub struct GetVotingAuthorityPK<'info> {
     pub election: Account<'info, Election>,
 }
 
+#[derive(Accounts)]
+pub struct CommitVote<'info> {
+    #[account(mut)]
+    pub voter_pda: Account<'info, Voter>, // Voter account (to store the commitment)
+    #[account(mut)]
+    pub election: Account<'info, Election>, // Election account to access election ID and authority
+    #[account(mut, signer)]
+    pub user: Signer<'info>,
+    /// CHECK: This is the instructions sysvar, which is read-only and required for Ed25519 signature verification.
+    #[account(address = solana_program::sysvar::instructions::ID)] 
+    pub instructions_sysvar: AccountInfo<'info>, // System instruction data for verifying signatures
+}
+
 #[account]
 pub struct Election {
     pub election_id: String, // Randomly generated election ID
@@ -315,8 +374,10 @@ pub struct Voter {
     pub voter_address: Pubkey, // public key of the voter user account, not the address of the Voter PDA account itself.
     pub has_committed: bool,
     pub has_revealed: bool,
+    // commitment = hash(encrypted(vote + salt) + nonce)
     pub commitment: Vec<u8>, // Store the cryptographic commitment as a vector of bytes (e.g., SHA256 hash)
-    //pub encrypted_
+    // encrypted(vote + salt)
+    pub encrypted_vote: Option<Vec<u8>>,
     pub vote: Option<VoteOption>, // Can store the vote option name
     pub voter_stake: u64,
 }

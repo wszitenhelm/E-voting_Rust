@@ -8,6 +8,44 @@
   },
   "instructions": [
     {
+      "name": "commit_vote",
+      "discriminator": [
+        134,
+        97,
+        90,
+        126,
+        91,
+        66,
+        16,
+        26
+      ],
+      "accounts": [
+        {
+          "name": "voter_pda",
+          "writable": true
+        },
+        {
+          "name": "election",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "instructions_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "commitment",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
       "name": "end_voting",
       "discriminator": [
         161,
@@ -58,16 +96,16 @@
       "returns": "string"
     },
     {
-      "name": "get_voting_authority",
+      "name": "get_voting_authority_public_key",
       "discriminator": [
-        88,
-        21,
-        27,
-        7,
-        73,
-        250,
-        210,
-        29
+        83,
+        192,
+        162,
+        248,
+        120,
+        177,
+        13,
+        165
       ],
       "accounts": [
         {
@@ -452,6 +490,12 @@
           {
             "name": "commitment",
             "type": "bytes"
+          },
+          {
+            "name": "encrypted_vote",
+            "type": {
+              "option": "bytes"
+            }
           },
           {
             "name": "vote",
