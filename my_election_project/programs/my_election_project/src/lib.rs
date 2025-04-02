@@ -154,7 +154,7 @@ mod voting_program {
         Ok(election.election_id.clone()) // Return election_id // needs cloning as String dont implement Copy trait 
     }
 
-    pub fn get_voting_authority(ctx: Context<GetVotingAuthority>) -> Result<Pubkey> {
+    pub fn get_voting_authority_public_key(ctx: Context<GetVotingAuthorityPK>) -> Result<Pubkey> {
         let election = &ctx.accounts.election;
         Ok(election.voting_authority) // doesn't need cloning as Pubkey implementes Copy 
     }
@@ -292,7 +292,7 @@ pub struct GetElectionId<'info> {
 }
 
 #[derive(Accounts)]
-pub struct GetVotingAuthority<'info> {
+pub struct GetVotingAuthorityPK<'info> {
     #[account(mut)]
     pub election: Account<'info, Election>,
 }
