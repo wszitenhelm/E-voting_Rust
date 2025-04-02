@@ -58,14 +58,31 @@ export type VotingProgram = {
         {
           "name": "election",
           "writable": true
-        },
-        {
-          "name": "user",
-          "signer": true
         }
       ],
       "args": [],
       "returns": "string"
+    },
+    {
+      "name": "getVotingAuthority",
+      "discriminator": [
+        88,
+        21,
+        27,
+        7,
+        73,
+        250,
+        210,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "election",
+          "writable": true
+        }
+      ],
+      "args": [],
+      "returns": "pubkey"
     },
     {
       "name": "initialize",
