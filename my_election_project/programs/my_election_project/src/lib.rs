@@ -94,6 +94,9 @@ mod voting_program {
         let election = &mut ctx.accounts.election;
         let registered_voters = &mut ctx.accounts.registered_voters;
         let instructions = &ctx.accounts.instructions_sysvar;
+
+        msg!("Stored Voting Authority: {:?}", election.voting_authority);
+        msg!("Signer (User) Key: {:?}", ctx.accounts.user.key());
     
         // Ensure election is not active
         if election.is_active {
@@ -113,6 +116,12 @@ mod voting_program {
         {
             return Err(ErrorCode::VoterAlreadyRegistered.into());
         }
+
+        // require_keys_eq!(
+        //     election.voting_authority,
+        //     user.key(),
+        //     CustomError::UnauthorizedVotingAuthority
+        // );
     
         // Verify the signature using the helper function
         //verify_signature(instructions, &voting_authority, &voter_public_key, voter_stake, &election.election_id)?;
@@ -128,9 +137,13 @@ mod voting_program {
         // Call the verify_signature function with these parameters
         verify_signature(instructions, &expected_signer, &expected_message)?;
 
+        msg!("✅ Passed Ed25519 verification, proceeding to register voter...");
+
 
         // Register the voter after verification
         let voter: &mut Account<'_, Voter> = &mut ctx.accounts.voter;
+
+        msg!("✅ Creating voter PDA...");
     
         // Ensure PDA is correctly derived (for debugging & verification)
         let (expected_voter_pda, _bump) =
@@ -153,12 +166,48 @@ mod voting_program {
         voter.vote = None;
         voter.voter_stake = voter_stake;
         voter.encrypted_vote = None;
-    
-        // Add voter to registered voters list
-        registered_voters
-            .registered_addresses
-            .push(voter_public_key);
-    
+
+        msg!("✅ Fetched registered_voters account...");
+
+        msg!("📏 Old Registered Voters Size: {}", registered_voters.to_account_info().data_len());
+
+        let old_len = registered_voters.registered_addresses.len();
+        let new_len = old_len + 1;
+        let old_size = 8 + (old_len * 32);
+        let new_size = 8 + (new_len * 32);
+        
+        msg!("📏 Old Size: {} bytes, New Size: {} bytes", old_size, new_size);
+        
+        if old_size < new_size {
+            // Ensure enough lamports are available for resizing
+            let rent = Rent::get()?;
+            let required_lamports = rent.minimum_balance(new_size);
+            let current_lamports = registered_voters.to_account_info().lamports();
+        
+            if current_lamports < required_lamports {
+                let additional_lamports = required_lamports - current_lamports;
+                msg!("💰 Adding {} lamports...", additional_lamports);
+        
+                let registered_voters_info = registered_voters.to_account_info();
+                let user_info = ctx.accounts.user.to_account_info();
+        
+                **user_info.try_borrow_mut_lamports()? -= additional_lamports;
+                **registered_voters_info.try_borrow_mut_lamports()? += additional_lamports;
+            }
+        
+            // 🚨 **Explicitly resize the account before modifying the vector!**
+            registered_voters.to_account_info().realloc(new_size, false)?;
+        
+            msg!("🔄 Resizing done, new size: {}", registered_voters.to_account_info().data_len());
+        }
+        
+        // Append the new voter
+        registered_voters.registered_addresses.push(voter_public_key);
+        
+        msg!("✅ Added voter {:?} to registered voters list!", voter_public_key);
+
+
+
         Ok(())
     }
     
@@ -218,66 +267,86 @@ pub fn check_admin(election: &Election, user: &Signer) -> Result<()> {
     Ok(())
 }
 
+        // signature data 64-byte signature + 32-byte public key).
+        // The signed message is extracted from byte 96 onward.
 
-pub fn verify_signature(
-    instructions: &AccountInfo,
-    expected_signer: &Pubkey,
-    expected_message: &[u8],
-) -> Result<bool> {
-    let mut signature_verified = false;
+        pub fn verify_signature(
+            instructions: &AccountInfo,
+            expected_signer: &Pubkey,
+            expected_message: &[u8],
+        ) -> Result<bool> {
+            let mut signature_verified = false;
+        
+            msg!("📌 Checking Sysvar Instructions Account...");
+            msg!("Instructions Sysvar Key: {:?}", instructions.key());
 
-    // Loop through the instructions to find the signature verification instruction
-    for i in 0..instructions.data_len() {
-        // Load the instruction at the given index
-        let instruction = match solana_program::sysvar::instructions::load_instruction_at_checked(i, instructions) {
-            Ok(instr) => instr,
-            Err(_) => continue,  // Skip if the instruction can't be loaded
-        };
 
-        // Check if it's an Ed25519SigVerify instruction
-        if instruction.program_id != solana_program::ed25519_program::id() {
-            continue;
+        
+            for i in 0..instructions.data_len() {
+                let instruction = match solana_program::sysvar::instructions::load_instruction_at_checked(i, instructions) {
+                    Ok(instr) => instr,
+                    Err(_) => {
+                        msg!("⚠️ Failed to load instruction at index {}", i);
+                        continue;
+                    }
+                };
+        
+                msg!("🔍 Checking instruction {}: Program ID {:?}", i, instruction.program_id);
+        
+                if instruction.program_id != solana_program::ed25519_program::id() {
+                    msg!("❌ Skipping non-Ed25519 instruction.");
+                    continue;
+                }
+        
+                let sig_data = &instruction.data;
+        
+                if sig_data.len() < 96 {
+                    msg!("⚠️ Signature data too short! Length: {}", sig_data.len());
+                    continue;
+                }
+        
+                let signed_pubkey = match <[u8; 32]>::try_from(&sig_data[64..96]) {
+                    Ok(pk) => Pubkey::from(pk),
+                    Err(_) => {
+                        msg!("⚠️ Failed to extract public key from signature data!");
+                        continue;
+                    }
+                };
+
+                msg!("🔍 SIG DAT: {:?}", sig_data);
+
+                msg!("🔍 Extracted Public Key: {:?}", signed_pubkey);
+                msg!("🎯 Expected Signer: {:?}", expected_signer);
+        
+                if signed_pubkey != *expected_signer {
+                    msg!("❌ Skipping: Public key does not match expected signer.");
+                    continue;
+                }
+        
+                let signed_message = &sig_data[96..];
+        
+                msg!("📜 Extracted Signed Message (Hex): {:x?}", signed_message);
+                msg!("🎯 Expected Message (Hex): {:x?}", expected_message);
+        
+                if signed_message != expected_message {
+                    msg!("❌ Skipping: Signed message does not match expected message.");
+                    continue;
+                }
+        
+                msg!("✅ Successfully verified Ed25519 signature from expected signer!");
+                signature_verified = true;
+                break;
+            }
+        
+            if !signature_verified {
+                msg!("❌ No valid Ed25519 signature found!");
+                return Err(ProgramError::InvalidInstructionData.into());
+            }
+        
+            Ok(true)
         }
+        
 
-        let sig_data = &instruction.data;
-
-        // Ensure signature data length is valid (length should include public key and signature)
-        if sig_data.len() < 96 {
-            msg!("Error: Signature data too short!");
-            return Err(ProgramError::InvalidInstructionData.into());
-        }
-
-        // Extract the public key that signed the message
-        let signed_pubkey = Pubkey::from(<[u8; 32]>::try_from(&sig_data[64..96]).unwrap());
-
-        // Ensure the extracted public key matches the expected signer
-        if signed_pubkey != *expected_signer {
-            msg!("Error: Signature is not from the expected signer!");
-            return Err(ProgramError::InvalidInstructionData.into());
-        }
-
-        // Extract the signed message from the signature data
-        let signed_message = &sig_data[96..];
-
-        // Verify if the signed message matches the expected message
-        if signed_message != expected_message {
-            msg!("Error: Signature does not match the expected message!");
-            return Err(ProgramError::InvalidInstructionData.into());
-        }
-
-        msg!("Verified Ed25519 signature from the expected signer!");
-        signature_verified = true;
-        break;  // Exit the loop after verification
-    }
-
-    // If no valid signature was found, return an error
-    if !signature_verified {
-        msg!("Error: No valid Ed25519SigVerify instruction found!");
-        return Err(ProgramError::InvalidInstructionData.into());
-    }
-
-    Ok(true)
-}
 
 
 #[derive(Accounts)]
@@ -320,7 +389,7 @@ pub struct RegisterVoter<'info> {
     // NEED TO BE PASSED AND CAN'T BE JUST TAKEN FROM REFERENCE IN ELECTION BECAUSE it is being modified and in Rust
     // you pass all accounts that are modified
     // oh so in Election it's Pubkey as its only reference and in Register it's actually account because it's being modified
-    #[account(init_if_needed, payer = user, space = 8 + 64, seeds = [b"voter", voter_public_key.as_ref()], bump)]
+    #[account(init_if_needed, payer = user, space = 8 + 128, seeds = [b"voter", voter_public_key.as_ref()], bump)]
     pub voter: Account<'info, Voter>, // Voter account
     #[account(mut, signer)]
     pub user: Signer<'info>, // The user registering the voter (Voting Authority)
