@@ -169,42 +169,19 @@ mod voting_program {
 
         msg!("✅ Fetched registered_voters account...");
 
-        msg!("📏 Old Registered Voters Size: {}", registered_voters.to_account_info().data_len());
+        msg!("Registered before: {:?}", registered_voters.registered_addresses.len());
+        msg!("Registered Voters Size BEFORE: {}", registered_voters.to_account_info().data_len());
 
-        let old_len = registered_voters.registered_addresses.len();
-        let new_len = old_len + 1;
-        let old_size = 8 + (old_len * 32);
-        let new_size = 8 + (new_len * 32);
-        
-        msg!("📏 Old Size: {} bytes, New Size: {} bytes", old_size, new_size);
-        
-        if old_size < new_size {
-            // Ensure enough lamports are available for resizing
-            let rent = Rent::get()?;
-            let required_lamports = rent.minimum_balance(new_size);
-            let current_lamports = registered_voters.to_account_info().lamports();
-        
-            if current_lamports < required_lamports {
-                let additional_lamports = required_lamports - current_lamports;
-                msg!("💰 Adding {} lamports...", additional_lamports);
-        
-                let registered_voters_info = registered_voters.to_account_info();
-                let user_info = ctx.accounts.user.to_account_info();
-        
-                **user_info.try_borrow_mut_lamports()? -= additional_lamports;
-                **registered_voters_info.try_borrow_mut_lamports()? += additional_lamports;
-            }
-        
-            // 🚨 **Explicitly resize the account before modifying the vector!**
-            registered_voters.to_account_info().realloc(new_size, false)?;
-        
-            msg!("🔄 Resizing done, new size: {}", registered_voters.to_account_info().data_len());
-        }
-        
-        // Append the new voter
-        registered_voters.registered_addresses.push(voter_public_key);
-        
-        msg!("✅ Added voter {:?} to registered voters list!", voter_public_key);
+    
+        // Add voter to registered voters list
+        registered_voters
+            .registered_addresses
+            .push(voter_public_key);
+    
+        msg!("✅ Added voters account...");
+
+        msg!("Final Registered Count: {:?}", registered_voters.registered_addresses.len());
+        msg!("Registered Voters Size AFTER: {}", registered_voters.to_account_info().data_len());
 
 
 
