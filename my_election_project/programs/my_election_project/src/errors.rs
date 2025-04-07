@@ -40,4 +40,7 @@ pub enum ErrorCode {
 
     #[msg("Vote already revealed.")]
     VoteAlreadyRevealed,
+
+    #[msg("Encryption key already set.")]
+    EncryptionKeyAlreadySet
 }

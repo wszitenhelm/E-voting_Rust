@@ -19,6 +19,7 @@ pub fn initialize(ctx: Context<Initialize>, election_name: String, voting_author
     election.admin = *ctx.accounts.user.key;
     election.voting_authority = voting_authority;
     election.election_id = election_id;
+    election.va_encryption_key = Pubkey::default();
     election.yes_votes = 0;
     election.no_votes = 0;
     Ok(())

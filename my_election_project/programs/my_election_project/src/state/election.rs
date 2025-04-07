@@ -9,6 +9,7 @@ pub struct Election {
     pub votes_revealed: bool,     // Have votes been revealed?
     pub admin: Pubkey,            // Admin's public key
     pub voting_authority: Pubkey, // Authority responsible for managing voting
+    pub va_encryption_key: Pubkey,
 
     // Direct vote counters
     pub yes_votes: u64,        // Count of "Yes" votes

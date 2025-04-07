@@ -7,7 +7,7 @@ use solana_program::hash::hash;
 pub struct RevealVote<'info> {
     #[account(mut)]
     pub voter_pda: Account<'info, Voter>, // Voter account 
-    #[account(mut)]
+    #[account(mut, signer)]
     pub election: Account<'info, Election>, // Election account to access election ID and authority
     #[account(mut, signer)]
     pub user: Signer<'info>,
