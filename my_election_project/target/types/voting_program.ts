@@ -161,40 +161,6 @@ export type VotingProgram = {
           }
         },
         {
-          "name": "registeredVoters",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  114,
-                  101,
-                  103,
-                  105,
-                  115,
-                  116,
-                  101,
-                  114,
-                  101,
-                  100,
-                  95,
-                  118,
-                  111,
-                  116,
-                  101,
-                  114,
-                  115
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "election"
-              }
-            ]
-          }
-        },
-        {
           "name": "user",
           "writable": true,
           "signer": true
@@ -234,10 +200,6 @@ export type VotingProgram = {
       "accounts": [
         {
           "name": "election",
-          "writable": true
-        },
-        {
-          "name": "registeredVoters",
           "writable": true
         },
         {
@@ -329,19 +291,6 @@ export type VotingProgram = {
         105,
         152,
         202
-      ]
-    },
-    {
-      "name": "registeredVoters",
-      "discriminator": [
-        105,
-        15,
-        176,
-        184,
-        31,
-        50,
-        20,
-        167
       ]
     },
     {
@@ -438,24 +387,6 @@ export type VotingProgram = {
           {
             "name": "votingAuthority",
             "type": "pubkey"
-          },
-          {
-            "name": "registeredVoters",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "registeredVoters",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "registeredAddresses",
-            "type": {
-              "vec": "pubkey"
-            }
           }
         ]
       }

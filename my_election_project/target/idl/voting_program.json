@@ -155,40 +155,6 @@
           }
         },
         {
-          "name": "registered_voters",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  114,
-                  101,
-                  103,
-                  105,
-                  115,
-                  116,
-                  101,
-                  114,
-                  101,
-                  100,
-                  95,
-                  118,
-                  111,
-                  116,
-                  101,
-                  114,
-                  115
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "election"
-              }
-            ]
-          }
-        },
-        {
           "name": "user",
           "writable": true,
           "signer": true
@@ -228,10 +194,6 @@
       "accounts": [
         {
           "name": "election",
-          "writable": true
-        },
-        {
-          "name": "registered_voters",
           "writable": true
         },
         {
@@ -323,19 +285,6 @@
         105,
         152,
         202
-      ]
-    },
-    {
-      "name": "RegisteredVoters",
-      "discriminator": [
-        105,
-        15,
-        176,
-        184,
-        31,
-        50,
-        20,
-        167
       ]
     },
     {
@@ -432,24 +381,6 @@
           {
             "name": "voting_authority",
             "type": "pubkey"
-          },
-          {
-            "name": "registered_voters",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "RegisteredVoters",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "registered_addresses",
-            "type": {
-              "vec": "pubkey"
-            }
           }
         ]
       }

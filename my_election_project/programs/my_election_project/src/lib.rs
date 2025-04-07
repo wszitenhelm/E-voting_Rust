@@ -42,12 +42,12 @@ mod voting_program {
             },
         ];
 
-        // Initialize RegisteredVoters account with public keys of voters not voter PDA
-        let registered_voters = &mut ctx.accounts.registered_voters;
-        registered_voters.registered_addresses = Vec::new(); // Start with an empty list of registered voters
+        // // Initialize RegisteredVoters account with public keys of voters not voter PDA
+        // let registered_voters = &mut ctx.accounts.registered_voters;
+        // registered_voters.registered_addresses = Vec::new(); // Start with an empty list of registered voters
 
-        // Set the registered_voters field to the public key of the registered_voters account
-        election.registered_voters = ctx.accounts.registered_voters.key(); // Link RegisteredVoters account to Election
+        // // Set the registered_voters field to the public key of the registered_voters account
+        // election.registered_voters = ctx.accounts.registered_voters.key(); // Link RegisteredVoters account to Election
 
         Ok(())
     }
@@ -88,15 +88,12 @@ mod voting_program {
         voter_stake: u64,
     ) -> Result<()> {
         // Access accounts
-        //  extract voting_authority into a variable before borrowing election mutably:
-        //let voting_authority = ctx.accounts.election.voting_authority.key(); // Immutable borrow
         let voting_authority = ctx.accounts.election.voting_authority; // Immutable borrow
         let election = &mut ctx.accounts.election;
-        let registered_voters = &mut ctx.accounts.registered_voters;
         let instructions = &ctx.accounts.instructions_sysvar;
-
-        msg!("Stored Voting Authority: {:?}", election.voting_authority);
-        msg!("Signer (User) Key: {:?}", ctx.accounts.user.key());
+    
+        // msg!("Stored Voting Authority: {:?}", election.voting_authority);
+        // msg!("Signer (User) Key: {:?}", ctx.accounts.user.key());
     
         // Ensure election is not active
         if election.is_active {
@@ -107,56 +104,56 @@ mod voting_program {
         let user = &ctx.accounts.user;
         if election.voting_authority != *user.key {
             return Err(ErrorCode::Unauthorized.into());
-        }
-    
-        // Check if the voter is already registered
-        if registered_voters
-            .registered_addresses
-            .contains(&voter_public_key)
-        {
-            return Err(ErrorCode::VoterAlreadyRegistered.into());
-        }
-
-        // require_keys_eq!(
-        //     election.voting_authority,
-        //     user.key(),
-        //     CustomError::UnauthorizedVotingAuthority
-        // );
-    
-        // Verify the signature using the helper function
-        //verify_signature(instructions, &voting_authority, &voter_public_key, voter_stake, &election.election_id)?;
-
-        // Assuming you have these values from your context
-        let expected_signer = voting_authority;
-
-        let mut expected_message = Vec::new();
-        expected_message.extend_from_slice(&voter_public_key.to_bytes());  // Voter's public key
-        expected_message.extend_from_slice(&voter_stake.to_le_bytes());   // Voter's stake
-        expected_message.extend_from_slice(election.election_id.as_bytes());       // Election ID
-
-        // Call the verify_signature function with these parameters
-        verify_signature(instructions, &expected_signer, &expected_message)?;
-
-        msg!("✅ Passed Ed25519 verification, proceeding to register voter...");
-
-
-        // Register the voter after verification
-        let voter: &mut Account<'_, Voter> = &mut ctx.accounts.voter;
-
-        msg!("✅ Creating voter PDA...");
+        }    
     
         // Ensure PDA is correctly derived (for debugging & verification)
         let (expected_voter_pda, _bump) =
             Pubkey::find_program_address(&[b"voter", voter_public_key.as_ref()], &crate::ID);
     
-        if expected_voter_pda != voter.key() {
+        if expected_voter_pda != ctx.accounts.voter.key() {
             return Err(ErrorCode::InvalidPDA.into());
         }
     
-        // Prevent re-initialization attack
-        if voter.voter_address != Pubkey::default() {
+        // A newly initialized PDA (via init_if_needed) will have voter_address set to Pubkey::default().
+        // If the PDA already existed, then voter_address would already contain a voter's public key.
+        //  **Check if voter PDA is already registered**
+        if ctx.accounts.voter.voter_address != Pubkey::default() {
             return Err(ErrorCode::VoterAlreadyRegistered.into());
         }
+    
+        // Verify the signature using the helper function
+        let expected_signer = voting_authority;
+        let mut expected_message = Vec::new();
+        expected_message.extend_from_slice(&voter_public_key.to_bytes());  // Voter's public key
+        expected_message.extend_from_slice(&voter_stake.to_le_bytes());   // Voter's stake
+        expected_message.extend_from_slice(election.election_id.as_bytes()); // Election ID
+    
+        verify_signature(instructions, &expected_signer, &expected_message)?;
+    
+        msg!("Passed Ed25519 verification, proceeding to register voter...");
+    
+        // Register the voter after verification
+        let voter: &mut Account<'_, Voter> = &mut ctx.accounts.voter;
+
+        let (expected_voter_pda, _) = Pubkey::find_program_address(
+            &[b"voter", voter_public_key.as_ref()], 
+            ctx.program_id
+        );
+        msg!("🔍 Correct Expected Voter PDA: {:?}", expected_voter_pda);
+        msg!("🔍 Voter PDA from Context: {:?}", voter.key());
+
+        // voter is already a reference 
+        // msg!("Voter PDA Owner: {:?}", voter.to_account_info().owner);
+
+        // msg!("Voter PDA Lamports: {}", voter.to_account_info().lamports());
+        
+        // msg!("Transaction Signer: {:?}", ctx.accounts.user.key());
+        // msg!("Expected VA: {:?}", ctx.accounts.election.voting_authority);
+
+        // msg!("HEEEELO {:?}");
+
+        // msg!("System Program: {:?}", ctx.accounts.system_program.key());
+
     
         // Initialize the voter's account with default values
         voter.voter_address = voter_public_key;
@@ -167,24 +164,9 @@ mod voting_program {
         voter.voter_stake = voter_stake;
         voter.encrypted_vote = None;
 
-        msg!("✅ Fetched registered_voters account...");
-
-        msg!("Registered before: {:?}", registered_voters.registered_addresses.len());
-        msg!("Registered Voters Size BEFORE: {}", registered_voters.to_account_info().data_len());
+        msg!("Voter's stake: {:?}", voter.voter_stake);
 
     
-        // Add voter to registered voters list
-        registered_voters
-            .registered_addresses
-            .push(voter_public_key);
-    
-        msg!("✅ Added voters account...");
-
-        msg!("Final Registered Count: {:?}", registered_voters.registered_addresses.len());
-        msg!("Registered Voters Size AFTER: {}", registered_voters.to_account_info().data_len());
-
-
-
         Ok(())
     }
     
@@ -254,8 +236,8 @@ pub fn check_admin(election: &Election, user: &Signer) -> Result<()> {
         ) -> Result<bool> {
             let mut signature_verified = false;
         
-            msg!("📌 Checking Sysvar Instructions Account...");
-            msg!("Instructions Sysvar Key: {:?}", instructions.key());
+            //msg!(" Checking Sysvar Instructions Account...");
+            //msg!("Instructions Sysvar Key: {:?}", instructions.key());
 
 
         
@@ -263,7 +245,7 @@ pub fn check_admin(election: &Election, user: &Signer) -> Result<()> {
                 let instruction = match solana_program::sysvar::instructions::load_instruction_at_checked(i, instructions) {
                     Ok(instr) => instr,
                     Err(_) => {
-                        msg!("⚠️ Failed to load instruction at index {}", i);
+                        //msg!("Failed to load instruction at index {}", i);
                         continue;
                     }
                 };
@@ -271,52 +253,52 @@ pub fn check_admin(election: &Election, user: &Signer) -> Result<()> {
                 msg!("🔍 Checking instruction {}: Program ID {:?}", i, instruction.program_id);
         
                 if instruction.program_id != solana_program::ed25519_program::id() {
-                    msg!("❌ Skipping non-Ed25519 instruction.");
+                    //msg!("Skipping non-Ed25519 instruction.");
                     continue;
                 }
         
                 let sig_data = &instruction.data;
         
                 if sig_data.len() < 96 {
-                    msg!("⚠️ Signature data too short! Length: {}", sig_data.len());
+                    //msg!("Signature data too short! Length: {}", sig_data.len());
                     continue;
                 }
         
                 let signed_pubkey = match <[u8; 32]>::try_from(&sig_data[64..96]) {
                     Ok(pk) => Pubkey::from(pk),
                     Err(_) => {
-                        msg!("⚠️ Failed to extract public key from signature data!");
+                        //msg!(" Failed to extract public key from signature data!");
                         continue;
                     }
                 };
 
-                msg!("🔍 SIG DAT: {:?}", sig_data);
+                //msg!("SIG DAT: {:?}", sig_data);
 
-                msg!("🔍 Extracted Public Key: {:?}", signed_pubkey);
-                msg!("🎯 Expected Signer: {:?}", expected_signer);
+                //msg!(" Extracted Public Key: {:?}", signed_pubkey);
+                //msg!(" Expected Signer: {:?}", expected_signer);
         
                 if signed_pubkey != *expected_signer {
-                    msg!("❌ Skipping: Public key does not match expected signer.");
+                    //msg!("Skipping: Public key does not match expected signer.");
                     continue;
                 }
         
                 let signed_message = &sig_data[96..];
         
-                msg!("📜 Extracted Signed Message (Hex): {:x?}", signed_message);
-                msg!("🎯 Expected Message (Hex): {:x?}", expected_message);
+                //msg!("Extracted Signed Message (Hex): {:x?}", signed_message);
+                //msg!(" Expected Message (Hex): {:x?}", expected_message);
         
                 if signed_message != expected_message {
-                    msg!("❌ Skipping: Signed message does not match expected message.");
+                    msg!(" Skipping: Signed message does not match expected message.");
                     continue;
                 }
         
-                msg!("✅ Successfully verified Ed25519 signature from expected signer!");
+                msg!("Successfully verified Ed25519 signature from expected signer!");
                 signature_verified = true;
                 break;
             }
         
             if !signature_verified {
-                msg!("❌ No valid Ed25519 signature found!");
+                msg!(" No valid Ed25519 signature found!");
                 return Err(ProgramError::InvalidInstructionData.into());
             }
         
@@ -330,8 +312,8 @@ pub fn check_admin(election: &Election, user: &Signer) -> Result<()> {
 pub struct Initialize<'info> {
     #[account(init, seeds = [b"election", user.key().as_ref()], bump, payer = user, space = 8 + 64 + 8 + 8 + 32 + (8 + 64) * 2 + 32)]
     pub election: Account<'info, Election>,
-    #[account(init, payer = user, space = 8 + 8 + 32, seeds = [b"registered_voters", election.key().as_ref()], bump)]
-    pub registered_voters: Account<'info, RegisteredVoters>, // Account for storing registered voters
+    //#[account(init, payer = user, space = 8 + 8 + 32, seeds = [b"registered_voters", election.key().as_ref()], bump)]
+    //pub registered_voters: Account<'info, RegisteredVoters>, // Account for storing registered voters
     #[account(mut, signer)]
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -361,12 +343,7 @@ pub struct EndVoting<'info> {
 pub struct RegisterVoter<'info> {
     #[account(mut)]
     pub election: Account<'info, Election>, // The election account
-    #[account(mut)]
-    pub registered_voters: Account<'info, RegisteredVoters>, // Account holding registered voters
-    // NEED TO BE PASSED AND CAN'T BE JUST TAKEN FROM REFERENCE IN ELECTION BECAUSE it is being modified and in Rust
-    // you pass all accounts that are modified
-    // oh so in Election it's Pubkey as its only reference and in Register it's actually account because it's being modified
-    #[account(init_if_needed, payer = user, space = 8 + 128, seeds = [b"voter", voter_public_key.as_ref()], bump)]
+    #[account(init_if_needed, payer = user, space = 8 + 256, seeds = [b"voter", voter_public_key.as_ref()], bump)]
     pub voter: Account<'info, Voter>, // Voter account
     #[account(mut, signer)]
     pub user: Signer<'info>, // The user registering the voter (Voting Authority)
@@ -412,7 +389,7 @@ pub struct Election {
     pub admin: Pubkey,          // Store the admin's public key
     pub votes: Vec<VoteOption>, // Store all options in a single account
     pub voting_authority: Pubkey,
-    pub registered_voters: Pubkey, // Single reference to the RegisteredVoters account
+    //pub registered_voters: Pubkey, // Single reference to the RegisteredVoters account
 }
 
 #[account]
@@ -428,10 +405,11 @@ pub struct Voter {
     pub voter_stake: u64,
 }
 
-#[account]
-pub struct RegisteredVoters {
-    pub registered_addresses: Vec<Pubkey>,
-}
+
+// #[account]
+// pub struct RegisteredVoters {
+//     pub registered_addresses: Vec<Pubkey>,
+// }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct VoteOption {
