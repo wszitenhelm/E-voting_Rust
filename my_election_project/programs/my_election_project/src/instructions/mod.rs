@@ -8,6 +8,7 @@ pub mod get_voting_authority_public_key;
 pub mod verify_signature;
 pub mod reveal_vote;
 pub mod submit_final_result;
+pub mod get_winner;
 
 pub use initialize::*;
 pub use register_voter::*;
@@ -19,3 +20,4 @@ pub use get_voting_authority_public_key::*;
 pub use verify_signature::*;
 pub use reveal_vote::*;
 pub use submit_final_result::*;
+pub use get_winner::*;

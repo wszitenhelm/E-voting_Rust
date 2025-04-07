@@ -9,15 +9,6 @@ pub use instructions::*;
 pub use state::*;
 pub use errors::*;
 
-// use instructions::initialize::Initialize;
-// use instructions::register_voter::RegisterVoter;
-// use instructions::start_election::StartElection;
-//use instructions::commit_vote::CommitVote;
-//use instructions::end_voting::EndVoting;
-//use instructions::get_election_id::GetElectionId;
-//use instructions::get_voting_authority_public_key::GetVotingAuthorityPublicKey;
-
-
 declare_id!("3QcquCXtnJeVNGtiMsjoMXh7TnFyMX4MMVRekdpdXzVS"); // Replace with actual program ID
 
 #[program]
@@ -56,7 +47,11 @@ pub mod voting_system {
         instructions::get_voting_authority_public_key::get_voting_authority_public_key(ctx)
     }
 
-    // pub fn verify_signature(ctx: Context<VerifySignature>) -> Result<Pubkey> {
-    //     instructions::verify_signature::verify_signature(ctx)
-    // }
+    pub fn submit_final_result(ctx: Context<SubmitFinalResult>, yes_votes: u64, no_votes: u64) -> Result<()> {
+        instructions::submit_final_result::submit_final_result(ctx, yes_votes, no_votes)
+    }
+
+    pub fn get_winner(ctx: Context<GetWinner>) -> Result<u8> {
+        instructions::get_winner::get_winner(ctx)
+    }
 }
