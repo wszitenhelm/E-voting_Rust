@@ -1,0 +1,43 @@
+use anchor_lang::prelude::*;
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Voting has already started.")]
+    VotingAlreadyStarted,
+
+    #[msg("Voting hasn't started yet.")]
+    VotingNotActive,
+
+    #[msg("Voting is still active.")]
+    ElectionStillActive,
+
+    #[msg("You are not authorized to perform this action.")]
+    Unauthorized,
+
+    #[msg("The results must be committed before ending the voting.")]
+    ResultsNotCommitted,
+
+    #[msg("This voter is already registered.")]
+    VoterAlreadyRegistered,
+
+    #[msg("PDA not correct for Voter account.")]
+    InvalidPDA,
+
+    #[msg("Invalid signature.")]
+    InvalidSignature,
+
+    #[msg("Invalid Public Key.")]
+    InvalidPublicKey,
+
+    #[msg("Hash already committed.")]
+    AlreadyCommitted,
+
+    #[msg("Invalid vote reveal - wrong hash computation.")]
+    InvalidVoteReveal,
+
+    #[msg("Vote not committed.")]
+    VoteNotCommitted,
+
+    #[msg("Vote already revealed.")]
+    VoteAlreadyRevealed,
+}

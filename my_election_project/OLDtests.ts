@@ -98,9 +98,6 @@ describe("voting_system", () => {
       console.log("Voting Authority:", votingAuthority.publicKey.toBase58());
       console.log("Voter", voter.publicKey.toBase58());
 
-      const adminBalance = await provider.connection.getBalance(admin.publicKey);
-      console.log(`Admin SOL balance: ${adminBalance} SOL`);
-
       // Initialize election
       await program.methods
         .initialize("Test Election", votingAuthority.publicKey, "12345")
@@ -122,16 +119,13 @@ describe("voting_system", () => {
   it("Ensures the stored Voting Authority address is correct", async () => {
     const election = await program.account.election.fetch(electionPDA);
 
-    console.log("VA election:", election.votingAuthority);
-    console.log("Voting Authority:", votingAuthority.publicKey.toBase58());
-
     // Check if the voting authority in the contract is correct
     expect(election.votingAuthority.toBase58()).to.equal(votingAuthority.publicKey.toBase58());
   });
 
   it("Admin can start election", async () => {
     await program.methods
-      .startElection()
+      .startVoting()
       .accounts({
         election: electionPDA,
         user: admin.publicKey,
@@ -147,7 +141,7 @@ describe("voting_system", () => {
   it("Non-admin cannot start election", async () => {
     try {
       await program.methods
-        .startElection()
+        .startVoting()
         .accounts({
           election: electionPDA,
           user: nonAdmin.publicKey,
@@ -158,23 +152,6 @@ describe("voting_system", () => {
       throw new Error("Non-admin was able to start the election!");
     } catch (err) {
       expect(err.message).to.include("Unauthorized");
-    }
-  });
-
-  it("Non-admin cannot end election", async () => {
-    try {
-      await program.methods
-        .endVoting()
-        .accounts({
-          election: electionPDA,
-          user: nonAdmin.publicKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .signers([nonAdmin])
-        .rpc();
-      throw new Error("Non-admin was able to end the election!");
-    } catch (err) {
-      expect(err.message).to.include("not authorized");
     }
   });
 
@@ -191,6 +168,23 @@ describe("voting_system", () => {
 
     let election = await program.account.election.fetch(electionPDA);
     expect(election.isActive).to.be.false;
+  });
+
+  it("Non-admin cannot end election", async () => {
+    try {
+      await program.methods
+        .endVoting()
+        .accounts({
+          election: electionPDA,
+          user: nonAdmin.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([nonAdmin])
+        .rpc();
+      throw new Error("Non-admin was able to end the election!");
+    } catch (err) {
+      expect(err.message).to.include("Unauthorized");
+    }
   });
 
   it("Anyone can get election ID", async () => {
@@ -302,33 +296,79 @@ describe("voting_system", () => {
   });
 
 
-  it("Non-VA cannot register voter", async () => {
-    try {
-      await program.methods
-        .registerVoter(voter.publicKey, new anchor.BN(10))
-        .accounts({
-          election: electionPDA,
-          voter2: voterPDA2,
-          user: admin.publicKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-        })
-        .signers([admin])
-        .rpc();
+  // it("VA can register a voter and ensure PDA is created", async () => {
+  //   // Log before the transaction to see the current state
+  //   let registeredVotersBefore = await program.account.registeredVoters.fetch(
+  //     registeredVotersPDA
+  //   );
+  //   console.log("Registered Voters Before:", registeredVotersBefore);
 
-      throw new Error("Non-VA was able to register a voter!");
-    } catch (err) {
-      console.error(err.message);  // Print the error message for debugging
-      expect(err.message).to.include("not authorized");
-      // Check that the voter PDA was NOT created
-      try {
-        let voterAccount = await program.account.voter.fetch(voterPDA2);
-        throw new Error("Voter PDA was incorrectly created by a non-VA!");
-      } catch (fetchErr) {
-        expect(fetchErr.message).to.include("Account does not exist");
-      }
-    }
-  });
+  //   // Register the voter
+  //   await program.methods
+  //     .registerVoter(voter.publicKey, new anchor.BN(10))
+  //     .accounts({
+  //       election: electionPDA,
+  //       registeredVoters: registeredVotersPDA,
+  //       voter: voterPDA,  // This is used for storing voter data (not the address)
+  //       user: votingAuthority.publicKey,
+  //       systemProgram: anchor.web3.SystemProgram.programId,
+  //     })
+  //     .signers([votingAuthority])
+  //     .rpc();
+
+  //   // Log after the transaction to check if the voter is registered
+  //   let registeredVotersAfter = await program.account.registeredVoters.fetch(
+  //     registeredVotersPDA
+  //   );
+  //   console.log("Registered Voters After:", registeredVotersAfter);
+
+  //   // Assert if the voter public key is in the registered addresses list
+  //   expect(registeredVotersAfter.registeredAddresses.map(pk => pk.toBase58())).to.include(voter.publicKey.toBase58());
+
+
+  //   // Check if the voter's PDA exists
+  //   try {
+  //     // Try to fetch the voter PDA account
+  //     let voterAccount = await program.account.voter.fetch(voterPDA);
+  //     console.log("Voter PDA data:", voterAccount);
+  //     console.log("PDA public key", voterPDA.toBase58());
+  //     expect(voterAccount).to.exist;  // If the account exists, the voter PDA was created
+  //   } catch (error) {
+  //     // If the fetch fails, the PDA was not created
+  //     console.error("Error fetching voter PDA:", error);
+  //     throw new Error("Voter PDA was not created!");
+  //   }
+  // });  
+
+
+  // it("Non-VA cannot register voter", async () => {
+  //   try {
+  //     await program.methods
+  //       .registerVoter(voter.publicKey, new anchor.BN(10))
+  //       .accounts({
+  //         election: electionPDA,
+  //         registeredVoters: registeredVotersPDA,
+  //         voter2: voterPDA2,
+  //         user: nonAdmin.publicKey,
+  //         systemProgram: anchor.web3.SystemProgram.programId,
+  //       })
+  //       .signers([nonAdmin])
+  //       .rpc();
+
+  //     throw new Error("Non-VA was able to register a voter!");
+  //   } catch (err) {
+  //     console.error(err.message);  // Print the error message for debugging
+  //     expect(err.message).to.include("not authorized to perform");
+  //     // Check that the voter PDA was NOT created
+  //     try {
+  //       let voterAccount = await program.account.voter.fetch(voterPDA2);
+  //       throw new Error("Voter PDA was incorrectly created by a non-VA!");
+  //     } catch (fetchErr) {
+  //       expect(fetchErr.message).to.include("Account does not exist");
+  //     }
+  //   }
+  // });
+
 
   // it("A voter can't be registered twice", async () => {
   //   try {
@@ -355,52 +395,12 @@ describe("voting_system", () => {
   // });
 
 
-  it("Registered voter can commit a vote with a valid signature and VA certificate", async () => {
-    // hashed vote is   hash(encrypt(vote + salt) and nonce)
-    const voteHash = Buffer.from("hashed_vote_123"); // Simulated hashed vote
-  
-    // Voter signs the voteHash
-    const { signature: voterSignature, messageUint8: voterMessage } = signMessage(voter, voteHash);
-  
-    // VA signs the certificate (voter address + stake + electionId)
-    const certificateMessage = Buffer.concat([
-      voter.publicKey.toBuffer(),
-      stake.toArrayLike(Buffer, "le", 8),
-      Buffer.from(electionId),
-    ]);
-    const { signature: vaSignature, messageUint8: vaMessage } = signMessage(votingAuthority, certificateMessage);
-  
-    // Create Ed25519 instruction to verify the voter's signature on the voteHash
-    const verifyVoterInstruction = Ed25519Program.createInstructionWithPublicKey({
-      publicKey: voter.publicKey.toBuffer(),
-      message: voterMessage,
-      signature: voterSignature,
-    });  
+  // it("Ensure correct PDA derivation", async () => {
+  //   const [expectedVoterPDA] = await anchor.web3.PublicKey.findProgramAddressSync(
+  //     [Buffer.from("voter"), voter.publicKey.toBuffer()],
+  //     program.programId
+  //   );
 
-  
-    // Create Ed25519 instruction to verify the VA's certificate signature
-    const verifyVAInstruction = Ed25519Program.createInstructionWithPublicKey({
-      publicKey: votingAuthority.publicKey.toBuffer(),
-      message: vaMessage,
-      signature: vaSignature,
-    });
-  
-    // Send transaction with commitVote instruction + both verification instructions
-    await program.methods
-      .commitVote(voteHash)
-      .accounts({
-        election: electionPDA,
-        voter: voterPDA,
-        user: voter.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .preInstructions([verifyVoterInstruction, verifyVAInstruction]) // Include both signature verifications
-      .signers([voter])
-      .rpc();
-  
-    // Fetch updated voter account to verify the vote was committed
-    const voterAccount = await program.account.voter.fetch(voterPDA);
-    expect(Buffer.from(voterAccount.voteHash)).to.eql(voteHash);
-  });  
-
+  //   expect(voterPDA.toBase58()).to.equal(expectedVoterPDA.toBase58());
+  // });
 });
