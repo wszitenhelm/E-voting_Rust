@@ -402,5 +402,53 @@ describe("voting_system", () => {
     const voterAccount = await program.account.voter.fetch(voterPDA);
     expect(Buffer.from(voterAccount.voteHash)).to.eql(voteHash);
   });  
+  
+
+  it("Voter can reveal their vote", async () => {
+    // Generate a fake vote and nonce
+    const fakeVote = Buffer.from("yes"); // Example vote
+    const nonce = anchor.utils.bytes.utf8.encode("random_nonce");
+  
+    // Encrypt vote (Mock, since actual encryption happens off-chain)
+    const encryptedVote = Buffer.from([...fakeVote, ...nonce]); // Simulated encryption
+    
+    // Compute hash as done in commitVote
+    const committedHash = web3.utils.sha256(encryptedVote);
+  
+    // Simulate committing the vote
+    await program.methods.commitVote(committedHash)
+      .accounts({
+        voterPda: voterPDA,
+        election: electionPDA,
+        user: voter.publicKey,
+      })
+      .signers([voter])
+      .rpc();
+  
+    // Now, end the election so revealing is allowed
+    await program.methods.endVoting()
+      .accounts({
+        election: electionPDA,
+        user: admin.publicKey,
+      })
+      .signers([admin])
+      .rpc();
+  
+    // Reveal the vote
+    await program.methods.revealVote([...encryptedVote], [...nonce])
+      .accounts({
+        voterPda: voterPDA,
+        election: electionPDA,
+        user: voter.publicKey,
+      })
+      .signers([voter])
+      .rpc();
+  
+    // Check that the vote has been marked as revealed
+    const voterAccount = await program.account.voter.fetch(voterPDA);
+    expect(voterAccount.hasRevealed).to.be.true;
+  });
+  
+
 
 });

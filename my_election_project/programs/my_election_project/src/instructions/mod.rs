@@ -7,6 +7,7 @@ pub mod get_election_id;
 pub mod get_voting_authority_public_key;
 pub mod verify_signature;
 pub mod reveal_vote;
+pub mod submit_final_result;
 
 pub use initialize::*;
 pub use register_voter::*;
@@ -17,3 +18,4 @@ pub use get_election_id::*;
 pub use get_voting_authority_public_key::*;
 pub use verify_signature::*;
 pub use reveal_vote::*;
+pub use submit_final_result::*;
