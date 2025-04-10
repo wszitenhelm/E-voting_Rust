@@ -2,6 +2,15 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum ErrorCode {
+    #[msg("Invalid commit duration.")]
+    InvalidCommitDuration,
+
+    #[msg("Invalid reveal duration.")]
+    InvalidRevealDuration,
+
+    #[msg("Commit phase not ended.")]
+    CommitPhaseNotEnded,
+
     #[msg("Voting has already started.")]
     VotingAlreadyStarted,
 
@@ -42,5 +51,17 @@ pub enum ErrorCode {
     VoteAlreadyRevealed,
 
     #[msg("Encryption key already set.")]
-    EncryptionKeyAlreadySet
+    EncryptionKeyAlreadySet,
+
+    #[msg("Invalid Instruction Data.")]
+    InvalidInstructionData,
+
+    #[msg("Invalid Argument.")]
+    InvalidArgument,
+
+    #[msg("Invalid Account Data.")]
+    InvalidAccountData,
+
+    #[msg("Not Found Instruction.")]
+    NotFound
 }

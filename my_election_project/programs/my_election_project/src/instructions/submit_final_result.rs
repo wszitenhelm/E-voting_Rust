@@ -35,7 +35,7 @@ pub fn submit_final_result(ctx: Context<SubmitFinalResult>,
     let message = [election_id, &yes_bytes, &no_bytes].concat();
 
     // Verify VA's signature
-    verify_signature(&ctx.accounts.instructions_sysvar, &election.voting_authority, &message)?;
+    //verify_signature(&ctx.accounts.instructions_sysvar, &election.voting_authority, &message)?;
 
     // Store final vote counts
     election.yes_votes = yes_votes;

@@ -15,8 +15,9 @@ declare_id!("3QcquCXtnJeVNGtiMsjoMXh7TnFyMX4MMVRekdpdXzVS"); // Replace with act
 pub mod voting_system {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>, election_name: String, voting_authority: Pubkey, election_id: String) -> Result<()> {
-        instructions::initialize::initialize(ctx, election_name, voting_authority, election_id)
+    pub fn initialize(ctx: Context<Initialize>, election_name: String, voting_authority: Pubkey, election_id: String, commit_duration: u64,
+        reveal_duration: u64) -> Result<()> {
+        instructions::initialize::initialize(ctx, election_name, voting_authority, election_id, commit_duration, reveal_duration)
     }
 
     pub fn register_voter(ctx: Context<RegisterVoter>, voter_public_key: Pubkey, voter_stake: u64) -> Result<()> {
@@ -43,8 +44,8 @@ pub mod voting_system {
         instructions::get_election_id::get_election_id(ctx)
     }
 
-    pub fn get_voting_authority_public_key(ctx: Context<GetVotingAuthorityPublicKey>) -> Result<Pubkey> {
-        instructions::get_voting_authority_public_key::get_voting_authority_public_key(ctx)
+    pub fn get_voting_authority_encryption_key(ctx: Context<GetVotingAuthorityEncryptionKey>) -> Result<Pubkey> {
+        instructions::get_voting_authority_encryption_key::get_voting_authority_encryption_key(ctx)
     }
 
     pub fn submit_final_result(ctx: Context<SubmitFinalResult>, yes_votes: u64, no_votes: u64) -> Result<()> {

@@ -2,17 +2,19 @@ use anchor_lang::prelude::*;
 use crate::state::{Election, Voter};
 use crate::errors::ErrorCode;
 use crate::verify_signature::verify_signature;
+use crate::{VerifySignature, VerifySignatureBumps};
+use bs58;
 
 
 #[derive(Accounts)]
-#[instruction(voter_public_key: Pubkey)]
+#[instruction(voter_public_key: Pubkey, voter_stake: u64)]
 pub struct RegisterVoter<'info> {
     #[account(mut)]
     pub election: Account<'info, Election>,
-    #[account(init_if_needed, payer = user, space = 8 + 256, seeds = [b"voter", voter_public_key.as_ref()], bump)]
+    #[account(init_if_needed, payer = voting_authority, space = 8 + 256, seeds = [b"voter", voter_public_key.as_ref()], bump)]
     pub voter: Account<'info, Voter>,
     #[account(mut, signer)]
-    pub user: Signer<'info>,
+    pub voting_authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     /// CHECK: This is the instructions sysvar, which is read-only and required for Ed25519 signature verification.
     #[account(address = solana_program::sysvar::instructions::ID)]
@@ -21,14 +23,21 @@ pub struct RegisterVoter<'info> {
 
 pub fn register_voter(ctx: Context<RegisterVoter>, voter_public_key: Pubkey, voter_stake: u64) -> Result<()> {
     let election = &mut ctx.accounts.election;
+
+    let instruction_sysvar = &ctx.accounts.instructions_sysvar;
+    msg!("Instructions Sysvar Account: {:?}", instruction_sysvar);
+
     
     // Ensure election is not active
     if election.is_active {
+        msg!("❌ Cannot register, election is active.");
         return Err(ErrorCode::VotingAlreadyStarted.into());
     }
 
+    msg!("✅ registering");
+
     // Ensure the user calling the function is the Voting Authority (VA)
-    if election.voting_authority != *ctx.accounts.user.key {
+    if election.voting_authority != *ctx.accounts.voting_authority.key {
         return Err(ErrorCode::Unauthorized.into());
     }
 
@@ -47,19 +56,77 @@ pub fn register_voter(ctx: Context<RegisterVoter>, voter_public_key: Pubkey, vot
         return Err(ErrorCode::VoterAlreadyRegistered.into());
     }
 
+    msg!("Reaching here register 1");
 
     let expected_signer = election.voting_authority;
+
+
+    // let mut expected_message = Vec::new();
+    // expected_message.extend_from_slice(&voter_public_key.to_bytes());
+    // expected_message.extend_from_slice(&voter_stake.to_le_bytes());
+    // expected_message.extend_from_slice(election.election_id.as_bytes());
+
+
+    // let voter_pubkey_str = bs58::encode(voter_public_key.to_bytes()).into_string(); // Convert Pubkey to Base58
+    // let voter_stake_str = voter_stake.to_string(); // Convert stake to string
+    // let election_id_str = &election.election_id; // Ensure UTF-8 encoding
+
+    // let expected_message = format!("{}-{}-{}", voter_pubkey_str, voter_stake_str, election_id_str).into_bytes();
+
+
     let mut expected_message = Vec::new();
-    expected_message.extend_from_slice(&voter_public_key.to_bytes());
-    expected_message.extend_from_slice(&voter_stake.to_le_bytes());
-    expected_message.extend_from_slice(election.election_id.as_bytes());
-
-    verify_signature(&ctx.accounts.instructions_sysvar, &expected_signer, &expected_message)?;
     
-    let (expected_voter_pda, _) = Pubkey::find_program_address(&[b"voter", voter_public_key.as_ref()], ctx.program_id);
+    // Encode the public key in Base58 (like in JavaScript)
+    let pubkey_bs58 = bs58::encode(voter_public_key.to_bytes()).into_string();
+    expected_message.extend_from_slice(pubkey_bs58.as_bytes());
+    
+    // Append "-" separator
+    expected_message.extend_from_slice(b"-");
+    
+    // Convert stake to string and append
+    let stake_str = voter_stake.to_string();
+    expected_message.extend_from_slice(stake_str.as_bytes());
+    
+    // Append "-" separator
+    expected_message.extend_from_slice(b"-");
+    
+    // Append election ID
+    expected_message.extend_from_slice(election.election_id.as_bytes());
+    
 
-    msg!("Correct Expected Voter PDA: {:?}", expected_voter_pda);
-    msg!("Voter PDA from Context: {:?}", ctx.accounts.voter.key());
+
+    //verify_signature(ctx.accounts.instructions_sysvar.as_ref(), &expected_signer, &expected_message)?;
+    //verify_signature(&ctx, &expected_signer, &expected_message)?;
+    // ✅ Construct a new context correctly
+
+    verify_signature(
+        Context::new(&crate::ID, &mut VerifySignature {
+            instructions: ctx.accounts.instructions_sysvar.clone(),
+        }, &[], VerifySignatureBumps::default()),
+        &expected_signer,
+        &expected_message
+    )?;
+
+    // ✅ Call `verify_signature` using the new context
+    //verify_signature(verify_ctx, &expected_signer, &expected_message)?;
+    
+    //sverify_signature(verify_ctx, &expected_signer, &expected_message)?;
+
+
+    msg!("Reaching here 2");
+
+    // verify_signature(
+    //     Context::new(&crate::ID, &mut VerifySignature {
+    //         instructions: ctx.accounts.instructions_sysvar.clone(),
+    //     }, &[], VerifySignatureBumps::default()),
+    //     expected_signer,
+    //     expected_message
+    // )?;
+    
+    // let (expected_voter_pda, _) = Pubkey::find_program_address(&[b"voter", voter_public_key.as_ref()], ctx.program_id);
+
+    // msg!("Correct Expected Voter PDA: {:?}", expected_voter_pda);
+    // msg!("Voter PDA from Context: {:?}", ctx.accounts.voter.key());
 
     // Register the voter after verification
     let voter = &mut ctx.accounts.voter;

@@ -22,6 +22,12 @@ pub fn end_voting(ctx: Context<EndVoting>) -> Result<()> {
         return Err(ErrorCode::Unauthorized.into());
     }
 
+    // let clock = Clock::get()?;
+
+    // require!(clock.unix_timestamp >= election.commit_end_time.unwrap(), ErrorCode::CommitPhaseNotEnded);
+
+    // election.reveal_end_time = Some(clock.unix_timestamp + election.reveal_duration as i64);
+
     election.is_active = false;
     election.votes_committed = true;
 

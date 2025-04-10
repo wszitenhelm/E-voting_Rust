@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use solana_program::sysvar::clock::Clock;
 use crate::state::Election;
 use crate::errors::ErrorCode;
 
@@ -19,14 +20,13 @@ pub fn start_election(ctx: Context<StartElection>) -> Result<()> {
         return Err(ErrorCode::Unauthorized.into());
     }
 
-        // Check that the results have been committed before ending the voting
-        //if !election.results_committed {
-        //return Err(ErrorCode::ResultsNotCommitted.into());
-        //}
-
     if election.is_active {
         return Err(ErrorCode::VotingAlreadyStarted.into());
     }
+
+    let clock = Clock::get()?;
+    election.commit_end_time = Some(clock.unix_timestamp + election.commit_duration as i64);
+
     election.is_active = true;
     Ok(())
 }
