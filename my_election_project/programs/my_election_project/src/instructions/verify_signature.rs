@@ -1,9 +1,6 @@
 use anchor_lang::prelude::*;
 use solana_program::{
-    account_info::AccountInfo,
-    ed25519_program,
-    sysvar::instructions::{load_instruction_at_checked, ID as SYSVAR_INSTRUCTIONS_ID},
-    pubkey::Pubkey,
+    account_info::AccountInfo, ed25519_program, message, pubkey::Pubkey, sysvar::instructions::{load_instruction_at_checked, ID as SYSVAR_INSTRUCTIONS_ID}
 };
 use bs58;
 use hex::encode;
@@ -42,6 +39,39 @@ pub fn verify_signature(
 
     let expected_message_hex = encode(expected_message);
     let expected_signer_hex = encode(expected_signer);
+
+
+    for i in 0..total_instructions {
+        if let Ok(ix) = load_instruction_at_checked(i as usize, instruction_sysvar) {
+            msg!("🔹 Instruction {}: {:?}", i, ix);
+            msg!("🔹 Instruction {} (Hex): {}", i, encode(&ix.data));
+            let instruction_hex = encode(&ix.data);
+            if instruction_hex.contains(&expected_message_hex) && instruction_hex.contains(&expected_signer_hex) {
+                //let first_32: String = instruction_hex.chars().take(32).collect(); // Each byte is represented by 2 hex characters
+                let first_32: &str = &instruction_hex[..32]; // First 32 bytes (64 hex chars)
+                let signer: &str = &instruction_hex[32..96]; // Bytes 33-96 (128 hex chars)
+                let message: &str = &instruction_hex[224..330]; // Bytes 33-96 (128 hex chars)
+                //let from_33_to_96: &str = &instruction_hex[64..192]; // Bytes 33-96 (128 hex chars)
+
+                if expected_message_hex == message && expected_signer_hex == signer {
+                    msg!("✅ WOHOOOOOO");
+                    msg!("✅ Signature verification passed.");
+                    return Ok(());
+                }
+
+
+                
+                // msg!("🔹 First 32 bytes (hex): {:?}", first_32);
+                // msg!("🔹 signer (hex): {:?}", from_33_to_96);
+                // msg!("🔹 message (hex): {:?}", from_);
+            }
+
+        } 
+        // else {
+        //     msg!("❌ Failed to load instruction at index {}", i);
+        // }
+    }
+
 
     for i in 0..total_instructions {
         if let Ok(ix) = load_instruction_at_checked(i as usize, instruction_sysvar) {

@@ -294,7 +294,7 @@ it("VA should be able to register a voter with a valid signature", async () => {
   const voter1 = anchor.web3.Keypair.generate();
 const voterPublicKey = bs58.encode(voter1.publicKey.toBytes()); // Encode public key as base58
 const stake = "20"; // Use the exact stake value
-const electionId = "12345"; // Election ID
+const electionId = "12345"; // Election ID // assume election ID is 5 digit string
 
 const testMessage = Buffer.from(`${voterPublicKey}-${stake}-${electionId}`, "utf-8");
 
