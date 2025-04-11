@@ -10,6 +10,8 @@ pub mod reveal_vote;
 pub mod submit_final_result;
 pub mod get_winner;
 pub mod set_encryption_key;
+pub mod verify_certificate;
+pub mod verify_voter_signature;
 
 pub use initialize::*;
 pub use register_voter::*;
@@ -23,3 +25,5 @@ pub use reveal_vote::*;
 pub use submit_final_result::*;
 pub use get_winner::*;
 pub use set_encryption_key::*;
+pub use verify_certificate::*;
+pub use verify_voter_signature::*;

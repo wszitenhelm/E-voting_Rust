@@ -28,8 +28,8 @@ pub mod voting_system {
         instructions::start_election::start_election(ctx)
     }
 
-    pub fn commit_vote(ctx: Context<CommitVote>, commitment: Vec<u8>) -> Result<()> {
-        instructions::commit_vote::commit_vote(ctx, commitment)
+    pub fn commit_vote(ctx: Context<CommitVote>, commitment: Vec<u8>, certificate: Vec<u8>,) -> Result<()> {
+        instructions::commit_vote::commit_vote(ctx, commitment, certificate)
     }
 
     pub fn reveal_vote(ctx: Context<RevealVote>, encrypted_vote: Vec<u8>, nonce: Vec<u8>) -> Result<()> {

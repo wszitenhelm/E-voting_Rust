@@ -63,5 +63,8 @@ pub enum ErrorCode {
     InvalidAccountData,
 
     #[msg("Not Found Instruction.")]
-    NotFound
+    NotFound,
+
+    #[msg("Invalid certificate passed.")]
+    InvalidCertificate
 }
