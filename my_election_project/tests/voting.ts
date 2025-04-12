@@ -233,7 +233,123 @@ describe("voting_system", () => {
     }
 });
 
-it("VA should be able to register a voter with a valid signature", async () => {
+// it("VA should be able to register a voter with a valid signature", async () => {
+//   const provider = anchor.getProvider();
+//   const testAuthority1 = anchor.web3.Keypair.generate();
+//   // public key - stake - electionId
+//   //const testMessage = Buffer.from("7vRWomYoLKJXPAtyB5cWxZ3hR2qWu1c2hqqx6Azt914N-20-12345", "utf-8");
+
+//   const bs58 = require("bs58"); // Ensure you have the bs58 package installed
+//   const voter1 = anchor.web3.Keypair.generate();
+//   const voterPublicKey = bs58.encode(voter1.publicKey.toBytes()); // Encode public key as base58
+//   const stake = "34"; // Use the exact stake value
+//   const electionId = "12345"; // Election ID // assume election ID is 5 digit string
+
+//   const testMessage = Buffer.from(`${voterPublicKey}-${stake}-${electionId}`, "utf-8");
+
+//   // console.log("✅ Expected Message (Hex):", testMessage.toString("hex"));
+//   // console.log("✅ Expected Message (UTF-8):", testMessage.toString("utf-8"));
+//   // console.log("Program ID:", program.programId.toBase58());
+
+//   try {
+//     const election = await program.account.election.fetch(electionPDA);
+//     //console.log("Election Account already exists:", election);
+//   } catch (error) {
+//     console.log("Election account does not exist, initializing...");
+  
+//     const tx = await program.methods
+//       .initialize("Test Election", votingAuthority.publicKey, electionId, new anchor.BN(600), new anchor.BN(300))
+//       .accountsStrict({
+//         election: electionPDA,
+//         user: admin.publicKey,
+//         systemProgram: anchor.web3.SystemProgram.programId,
+//       })
+//       .signers([admin])
+//       .rpc();
+    
+//     const electionAfter = await program.account.election.fetch(electionPDA);
+//     //console.log("Initialized Election Account:", electionAfter);
+//   }
+
+//   console.log("✅ Election initialized!");
+
+//   const ed25519Instruction = Ed25519Program.createInstructionWithPrivateKey({
+//       privateKey: votingAuthority.secretKey,
+//       message: testMessage,
+//   });
+
+
+//   console.log("Ed25519 Instruction:", ed25519Instruction);
+//   console.log("Ed25519 Instruction.data:", ed25519Instruction.data);
+//   console.log("🔹 Ed25519 TEST FILE Data Hex:", Buffer.from(ed25519Instruction.data).toString("hex"));
+//   // console.log("test message", testMessage);
+//   // console.log("Test message (hex):", Buffer.from(testMessage).toString("hex"));
+//   // console.log("SIGNER", votingAuthority.publicKey);
+//   // console.log("voter registred public key", voter1.publicKey)
+
+//   // Step 3: **Increase compute budget for verification**
+//   const computeBudgetIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+//       units: 500_000,
+//   });
+
+//   //console.log("✅ Reached Ed25519 verification");
+
+//   const electionAccount = await provider.connection.getAccountInfo(electionPDA);
+//   if (!electionAccount) {
+//     console.error("Election account does not exist!");
+//   } else {
+//     console.log("Election Account Owner:", electionAccount.owner.toBase58());
+//   }
+  
+//   const [voterPDA, voterBump] = await anchor.web3.PublicKey.findProgramAddressSync(
+//     [Buffer.from("voter"), voter1.publicKey.toBuffer()],
+//     program.programId
+//   );
+
+//   const electionData = await program.account.election.fetch(electionPDA);
+
+//   const registerVoterIx = await program.methods
+//       .registerVoter(voter1.publicKey, new anchor.BN(34)) // Example stake amount
+//       .accountsStrict({
+//           election: electionPDA,
+//           voter: voterPDA,
+//           votingAuthority: votingAuthority.publicKey,
+//           systemProgram,
+//           instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+//       })
+//       .instruction();
+
+//   try {
+//       const transaction = new Transaction()
+//           .add(computeBudgetIx)
+//           .add(ed25519Instruction)
+//           .add(registerVoterIx);
+
+//       const txSignature = await provider.sendAndConfirm(transaction, [votingAuthority], { commitment: "confirmed" });
+
+//       const txInfo = await provider.connection.getTransaction(txSignature, {
+//         commitment: "confirmed",
+//         maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
+//     });
+//       // TO SEE ALL THE LOGS !!!
+//       console.log("Transaction Logs:", txInfo?.meta?.logMessages);
+//       //console.log("✅ Transaction Successful! Signature:", txSignature);
+//       const voterAccount = await provider.connection.getAccountInfo(voterPDA);
+//       if (voterAccount) {
+//           //console.log("Voter PDA Owner:", voterAccount.owner.toBase58());
+//           console.log("Voter account:", voterAccount);
+//       } else {
+//           console.log("Voter PDA does not exist yet.");
+//       }
+//       expect(txSignature).to.be.a("string");
+//   } catch (err) {
+//       console.error("❌ Register Voter Transaction Failed:", err);
+//       throw err;
+//   }
+// });
+
+
+it("test of all", async () => {
   const provider = anchor.getProvider();
   const testAuthority1 = anchor.web3.Keypair.generate();
   // public key - stake - electionId
@@ -306,6 +422,8 @@ it("VA should be able to register a voter with a valid signature", async () => {
     program.programId
   );
 
+  console.log("HERE WE ARE 1");
+
   const electionData = await program.account.election.fetch(electionPDA);
 
   const registerVoterIx = await program.methods
@@ -346,122 +464,304 @@ it("VA should be able to register a voter with a valid signature", async () => {
       console.error("❌ Register Voter Transaction Failed:", err);
       throw err;
   }
-});
 
-it("VA should be able to register a voter with not valid signature", async () => {
-  const provider = anchor.getProvider();
-  const testAuthority1 = anchor.web3.Keypair.generate();
-  // public key - stake - electionId
-  //const testMessage = Buffer.from("7vRWomYoLKJXPAtyB5cWxZ3hR2qWu1c2hqqx6Azt914N-20-12345", "utf-8");
+  console.log("HERE WE ARE 2");
 
-  const bs58 = require("bs58"); // Ensure you have the bs58 package installed
-  const voter2 = anchor.web3.Keypair.generate();
-  const voterPublicKey = bs58.encode(voter2.publicKey.toBytes()); // Encode public key as base58
-  const stake = "20"; // Use the exact stake value
-  const electionId = "12345"; // Election ID // assume election ID is 5 digit string
-
-  const testMessage = Buffer.from(`${voterPublicKey}-${stake}-${electionId}`, "utf-8");
-
-  try {
-    const election = await program.account.election.fetch(electionPDA);
-    //console.log("Election Account already exists:", election);
-  } catch (error) {
-    console.log("Election account does not exist, initializing...");
-  
-    const tx = await program.methods
-      .initialize("Test Election", votingAuthority.publicKey, electionId, new anchor.BN(600), new anchor.BN(300))
-      .accountsStrict({
-        election: electionPDA,
-        user: admin.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
+    //const certificate = "01003000ffff1000ffff70003500ffff3c0df73ad448fbfc88ea3e4497a91cd31a46fe2945e9682389c133562a5d47fe899ba5e37cf1518214b1ae6b669efd5806cf19b892ed914c0883f85d889464558fc20ec2fec19da3d0f80642633b55fc0ef20c06e029dc1dc78f5838c6b4da0d397a5a66696e414341516a6d526b4a45734d364c674b444d396a6f414734536455583248626670455148766d2d32302d3132333435";
     
-    const electionAfter = await program.account.election.fetch(electionPDA);
-    //console.log("Initialized Election Account:", electionAfter);
-  }
+    //const certificateFunction = Buffer.from(certificate, "hex"); // ✅ Convert directly to Buffer
 
-  console.log("✅ Election initialized!");
 
-  const ed25519Instruction = Ed25519Program.createInstructionWithPrivateKey({
-      privateKey: admin.secretKey,
-      message: testMessage,
+    const commitmentHex = "a3b1c5d7e9f0112233445566778899aabbccddeeff"; // Example hex
+    const commitment = Uint8Array.from(Buffer.from(commitmentHex, "hex"));
+    const commitmentFunction = Buffer.from(commitmentHex, "hex"); // ✅ Convert directly to Buffer
+
+    const certificate = Buffer.from(ed25519Instruction.data); // ✅ Buffer
+
+
+    const ed25519InstructionVoter = Ed25519Program.createInstructionWithPrivateKey({
+      privateKey: voter1.secretKey,
+      message: commitment,
   });
 
-  // Step 3: **Increase compute budget for verification**
-  const computeBudgetIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
-      units: 500_000,
-  });
+  console.log("TEst votingAuthority", votingAuthority.publicKey);
 
-  //console.log("✅ Reached Ed25519 verification");
+  console.log("🔹 Ed25519 TEST FILE Data Hex:", Buffer.from(ed25519Instruction.data).toString("hex"));
 
-  const electionAccount = await provider.connection.getAccountInfo(electionPDA);
-  if (!electionAccount) {
-    console.error("Election account does not exist!");
-  } else {
-    console.log("Election Account Owner:", electionAccount.owner.toBase58());
-  }
-  
-  const [voterPDA2, voterBump] = await anchor.web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("voter"), voter2.publicKey.toBuffer()],
-    program.programId
-  );
+    const commitVoteIx = await program.methods
+    .commitVote(commitmentFunction, certificate) //
+    .accountsStrict({
+      voterPda: voterPDA,
+      election: electionPDA,
+      user: voter1.publicKey,
+      instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+    })
+    .instruction();
 
-  const electionData = await program.account.election.fetch(electionPDA);
+    try {
+    const transaction = new Transaction()
+        .add(computeBudgetIx)
+        .add(ed25519InstructionVoter)
+        .add(commitVoteIx);
 
-  const registerVoterIx = await program.methods
-      .registerVoter(voter2.publicKey, new anchor.BN(20)) // Example stake amount
-      .accountsStrict({
-          election: electionPDA,
-          voter: voterPDA2,
-          votingAuthority: votingAuthority.publicKey,
-          systemProgram,
-          instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-      })
-      .instruction();
+    const txSignature = await provider.sendAndConfirm(transaction, [voter1], { commitment: "confirmed" });
 
-      try {
-        const transaction = new Transaction()
-            .add(computeBudgetIx)
-            .add(ed25519Instruction)
-            .add(registerVoterIx);
-    
-        const txSignature = await provider.sendAndConfirm(transaction, [votingAuthority], { commitment: "confirmed" });
-    
-        const txInfo = await provider.connection.getTransaction(txSignature, {
-            commitment: "confirmed",
-            maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
-        });
-    
-        // TO SEE ALL THE LOGS !!!
-        console.log("Transaction Logs:", txInfo?.meta?.logMessages);
-    
-        // Check if the voter PDA exists (it shouldn't)
-        const voterAccount = await provider.connection.getAccountInfo(voterPDA2);
-    
-        if (voterAccount) {
-            console.log("❌ Voter PDA should not exist, but it does:", voterAccount);
-            throw new Error("Voter registration should have failed, but it succeeded.");
-        } else {
-            console.log("✅ Voter PDA does not exist, as expected.");
-        }
-    
-        // If the transaction succeeded when it should have failed, throw an error
-        throw new Error("❌ Register Voter Transaction should have failed but succeeded.");
-    } catch (err) {
-        console.log("✅ Register Voter Transaction failed as expected:", err.message);
-        
-        // Ensure the error is what we expect
-        //expect(err.message).to.include("custom program error"); // Modify based on actual error message
+    const txInfo = await provider.connection.getTransaction(txSignature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
+    });
+    // TO SEE ALL THE LOGS !!!
+    console.log("Transaction Logs:", txInfo?.meta?.logMessages);
+    //console.log("✅ Transaction Successful! Signature:", txSignature);
+    const voterAccount = await provider.connection.getAccountInfo(voterPDA);
+    if (voterAccount) {
+        //console.log("Voter PDA Owner:", voterAccount.owner.toBase58());
+        console.log("Voter account:", voterAccount);
+    } else {
+        console.log("Voter PDA does not exist yet.");
     }
-    
-
+    expect(txSignature).to.be.a("string");
+    } catch (err) {
+    console.error("COMMMIT FAILED", err);
+    throw err;
+    }
 
 });
 });
 
+
+// it("VA should not be able to register a voter with not valid signature", async () => {
+//   const provider = anchor.getProvider();
+//   const testAuthority1 = anchor.web3.Keypair.generate();
+//   // public key - stake - electionId
+//   //const testMessage = Buffer.from("7vRWomYoLKJXPAtyB5cWxZ3hR2qWu1c2hqqx6Azt914N-20-12345", "utf-8");
+
+//   const bs58 = require("bs58"); // Ensure you have the bs58 package installed
+//   const voter2 = anchor.web3.Keypair.generate();
+//   const voterPublicKey = bs58.encode(voter2.publicKey.toBytes()); // Encode public key as base58
+//   const stake = "20"; // Use the exact stake value
+//   const electionId = "12345"; // Election ID // assume election ID is 5 digit string
+
+//   const testMessage = Buffer.from(`${voterPublicKey}-${stake}-${electionId}`, "utf-8");
+
+//   try {
+//     const election = await program.account.election.fetch(electionPDA);
+//     //console.log("Election Account already exists:", election);
+//   } catch (error) {
+//     console.log("Election account does not exist, initializing...");
   
+//     const tx = await program.methods
+//       .initialize("Test Election", votingAuthority.publicKey, electionId, new anchor.BN(600), new anchor.BN(300))
+//       .accountsStrict({
+//         election: electionPDA,
+//         user: admin.publicKey,
+//         systemProgram: anchor.web3.SystemProgram.programId,
+//       })
+//       .signers([admin])
+//       .rpc();
+    
+//     const electionAfter = await program.account.election.fetch(electionPDA);
+//     //console.log("Initialized Election Account:", electionAfter);
+//   }
+
+//   console.log("✅ Election initialized!");
+
+//   const ed25519Instruction = Ed25519Program.createInstructionWithPrivateKey({
+//       privateKey: admin.secretKey,
+//       message: testMessage,
+//   });
+
+//   // Step 3: **Increase compute budget for verification**
+//   const computeBudgetIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+//       units: 500_000,
+//   });
+
+//   //console.log("✅ Reached Ed25519 verification");
+
+//   const electionAccount = await provider.connection.getAccountInfo(electionPDA);
+//   if (!electionAccount) {
+//     console.error("Election account does not exist!");
+//   } else {
+//     console.log("Election Account Owner:", electionAccount.owner.toBase58());
+//   }
+  
+//   const [voterPDA2, voterBump] = await anchor.web3.PublicKey.findProgramAddressSync(
+//     [Buffer.from("voter"), voter2.publicKey.toBuffer()],
+//     program.programId
+//   );
+
+//   const electionData = await program.account.election.fetch(electionPDA);
+
+//   const registerVoterIx = await program.methods
+//       .registerVoter(voter2.publicKey, new anchor.BN(20)) // Example stake amount
+//       .accountsStrict({
+//           election: electionPDA,
+//           voter: voterPDA2,
+//           votingAuthority: votingAuthority.publicKey,
+//           systemProgram,
+//           instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+//       })
+//       .instruction();
+
+//       try {
+//         const transaction = new Transaction()
+//             .add(computeBudgetIx)
+//             .add(ed25519Instruction)
+//             .add(registerVoterIx);
+    
+//         const txSignature = await provider.sendAndConfirm(transaction, [votingAuthority], { commitment: "confirmed" });
+    
+//         const txInfo = await provider.connection.getTransaction(txSignature, {
+//             commitment: "confirmed",
+//             maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
+//         });
+    
+//         // TO SEE ALL THE LOGS !!!
+//         console.log("Transaction Logs:", txInfo?.meta?.logMessages);
+    
+//         // Check if the voter PDA exists (it shouldn't)
+//         const voterAccount = await provider.connection.getAccountInfo(voterPDA2);
+    
+//         if (voterAccount) {
+//             console.log("❌ Voter PDA should not exist, but it does:", voterAccount);
+//             throw new Error("Voter registration should have failed, but it succeeded.");
+//         } else {
+//             console.log("✅ Voter PDA does not exist, as expected.");
+//         }
+    
+//         // If the transaction succeeded when it should have failed, throw an error
+//         throw new Error("❌ Register Voter Transaction should have failed but succeeded.");
+//     } catch (err) {
+//         console.log("✅ Register Voter Transaction failed as expected:", err.message);
+        
+//         // Ensure the error is what we expect
+//         //expect(err.message).to.include("custom program error"); // Modify based on actual error message
+//     }
+// });
+
+
+
+// it("Voter should be able to commit with valid certificate and signing commitment before ", async () => {
+//   const provider = anchor.getProvider();
+
+//   const certificate = "01003000ffff1000ffff70003500ffff3c0df73ad448fbfc88ea3e4497a91cd31a46fe2945e9682389c133562a5d47fe899ba5e37cf1518214b1ae6b669efd5806cf19b892ed914c0883f85d889464558fc20ec2fec19da3d0f80642633b55fc0ef20c06e029dc1dc78f5838c6b4da0d397a5a66696e414341516a6d526b4a45734d364c674b444d396a6f414734536455583248626670455148766d2d32302d3132333435";
+//   const certificateFunction = Buffer.from(certificate, "hex"); // ✅ Convert directly to Buffer
+
+
+//   try {
+//     const election = await program.account.election.fetch(electionPDA);
+//     console.log("Election Account already exists:", election);
+//   } catch (error) {
+//     console.log("Election account does not exist, initializing...");
+  
+//     const tx = await program.methods
+//       .initialize("Test Election", votingAuthority.publicKey, electionId, new anchor.BN(600), new anchor.BN(300))
+//       .accountsStrict({
+//         election: electionPDA,
+//         user: admin.publicKey,
+//         systemProgram: anchor.web3.SystemProgram.programId,
+//       })
+//       .signers([admin])
+//       .rpc();
+    
+//     const electionAfter = await program.account.election.fetch(electionPDA);
+//     console.log("Initialized Election Account:", electionAfter);
+//   }
+
+//   console.log("✅ Election initialized!");
+
+//   const commitmentHex = "a3b1c5d7e9f0112233445566778899aabbccddeeff"; // Example hex
+//   const commitment = Uint8Array.from(Buffer.from(commitmentHex, "hex"));
+//   const commitmentFunction = Buffer.from(commitmentHex, "hex"); // ✅ Convert directly to Buffer
+
+
+//   const ed25519Instruction = Ed25519Program.createInstructionWithPrivateKey({
+//       privateKey: voter1.secretKey,
+//       message: commitment,
+//   });
+
+//   console.log("Ed25519 Instruction:", ed25519Instruction);
+//   console.log("Ed25519 Instruction.data:", ed25519Instruction.data);
+//   console.log("🔹 Ed25519 TEST FILE Data Hex:", Buffer.from(ed25519Instruction.data).toString("hex"));
+//   // console.log("test message", testMessage);
+//   // console.log("Test message (hex):", Buffer.from(testMessage).toString("hex"));
+//   // console.log("SIGNER", votingAuthority.publicKey);
+//   // console.log("voter registred public key", voter1.publicKey)
+
+//   // Step 3: **Increase compute budget for verification**
+//   const computeBudgetIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+//       units: 500_000,
+//   });
+
+
+//   const electionAccount = await provider.connection.getAccountInfo(electionPDA);
+//   if (!electionAccount) {
+//     console.error("Election account does not exist!");
+//   } else {
+//     console.log("Election Account Owner:", electionAccount.owner.toBase58());
+//   }
+
+//   const [voterPda, voterBump] = await anchor.web3.PublicKey.findProgramAddressSync(
+//     [Buffer.from("voter"), voter1.publicKey.toBuffer()],
+//     program.programId
+//   );
+
+//   const voterAccountIx = anchor.web3.SystemProgram.createAccount({
+//     fromPubkey: provider.wallet.publicKey, // Any payer, can be admin
+//     newAccountPubkey: voter1.publicKey, // The PDA you're creating
+//     lamports: await provider.connection.getMinimumBalanceForRentExemption(1000), // Adjust size if needed
+//     space: 1000, // Adjust based on actual account size
+//     programId: program.programId,
+//   });
+  
+//   const transaction = new anchor.web3.Transaction().add(voterAccountIx);
+//   await provider.sendAndConfirm(transaction);
+//   console.log("✅ Voter PDA manually created!");
+
+//   const commitVoteIx = await program.methods
+//       .commitVote(commitmentFunction, certificateFunction) //
+//       .accounts({
+//         voterPda: voterPda,
+//         election: electionPDA,
+//         user: voter1.publicKey,
+//         instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+//       })
+//       .instruction();
+
+//   try {
+//       const transaction = new Transaction()
+//           .add(computeBudgetIx)
+//           .add(ed25519Instruction)
+//           .add(commitVoteIx);
+
+//       const txSignature = await provider.sendAndConfirm(transaction, [voter1], { commitment: "confirmed" });
+
+//       const txInfo = await provider.connection.getTransaction(txSignature, {
+//         commitment: "confirmed",
+//         maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
+//     });
+//       // TO SEE ALL THE LOGS !!!
+//       console.log("Transaction Logs:", txInfo?.meta?.logMessages);
+//       //console.log("✅ Transaction Successful! Signature:", txSignature);
+//       const voterAccount = await provider.connection.getAccountInfo(voterPda);
+//       if (voterAccount) {
+//           //console.log("Voter PDA Owner:", voterAccount.owner.toBase58());
+//           console.log("Voter account:", voterAccount);
+//       } else {
+//           console.log("Voter PDA does not exist yet.");
+//       }
+//       expect(txSignature).to.be.a("string");
+//   } catch (err) {
+//       console.error("❌ Register Voter Transaction Failed:", err);
+//       throw err;
+//   }
+// });
+
+// });
+  
+
+
+
   // it("Fails to register voter with missing Ed25519 instruction", async () => {
   //   try {
   //     await program.methods

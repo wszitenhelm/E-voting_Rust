@@ -18,6 +18,7 @@ pub fn verify_voter_signature(
     expected_signer: &Pubkey,
     expected_message: &[u8],
 ) -> Result<()> {
+    
     let instruction_sysvar = &ctx.accounts.instructions;
     let instruction_data = instruction_sysvar.try_borrow_data()?;
     let total_instructions = instruction_data.len() / 4;

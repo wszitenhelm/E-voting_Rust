@@ -37,6 +37,12 @@ pub fn verify_signature(
     let expected_message_hex = encode(expected_message);
     let expected_signer_hex = encode(expected_signer);
 
+    msg!("🔹 messege expected {:?}", expected_message);
+    msg!("🔹 messege expected hex {:?}", expected_message_hex);
+
+    msg!("🔹 signer expected {:?}", expected_signer);
+    msg!("🔹 signer expected hex {:?}",expected_signer_hex);
+
     for i in 0..total_instructions {
         if let Ok(ix) = load_instruction_at_checked(i as usize, instruction_sysvar) {
             msg!("🔹 Instruction {}: {:?}", i, ix);

@@ -47,6 +47,10 @@ pub fn commit_vote(ctx: Context<CommitVote>, commitment: Vec<u8>, certificate: V
     
     // Append election ID
     expected_message.extend_from_slice(election.election_id.as_bytes());
+
+    msg!("PRINING IN COMMIT VOTE");
+    msg!("voting authority {:?}", voting_authority);
+    msg!("expected message {:?}", expected_message);
     
     verify_certificate(&voting_authority, &expected_message, certificate)?;
 
