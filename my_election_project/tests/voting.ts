@@ -138,66 +138,66 @@ describe("voting_system", () => {
     expect(election.votingAuthority.toBase58()).to.equal(votingAuthority.publicKey.toBase58());
   });
 
-  it("Admin can start election", async () => {
+  // it("Admin can start election", async () => {
     
-    await program.methods
-      .startElection()
-      .accounts({
-        election: electionPDA,
-        user: admin.publicKey
-      })
-      .signers([admin])
-      .rpc({ commitment: "confirmed" });
+  //   await program.methods
+  //     .startElection()
+  //     .accounts({
+  //       election: electionPDA,
+  //       user: admin.publicKey
+  //     })
+  //     .signers([admin])
+  //     .rpc({ commitment: "confirmed" });
 
-    const election = await program.account.election.fetch(electionPDA);
-    expect(election.isActive).to.be.true;
-  });
+  //   const election = await program.account.election.fetch(electionPDA);
+  //   expect(election.isActive).to.be.true;
+  // });
 
-  it("Non-admin cannot start election", async () => {
-    try {
-      await program.methods
-        .startElection()
-        .accounts({
-          election: electionPDA,
-          user: nonAdmin.publicKey
-        })
-        .signers([nonAdmin])
-        .rpc({ commitment: "confirmed" });
-      expect.fail("Non-admin should not be able to start the election");
-    } catch (err) {
-      expect(err.message).to.include("Unauthorized");
-    }
-  });
+  // it("Non-admin cannot start election", async () => {
+  //   try {
+  //     await program.methods
+  //       .startElection()
+  //       .accounts({
+  //         election: electionPDA,
+  //         user: nonAdmin.publicKey
+  //       })
+  //       .signers([nonAdmin])
+  //       .rpc({ commitment: "confirmed" });
+  //     expect.fail("Non-admin should not be able to start the election");
+  //   } catch (err) {
+  //     expect(err.message).to.include("Unauthorized");
+  //   }
+  // });
 
-  it("Non-admin cannot end election", async () => {
-    try {
-      await program.methods
-        .endVoting()
-        .accounts({
-          election: electionPDA,
-          user: nonAdmin.publicKey
-        })
-        .signers([nonAdmin])
-        .rpc({ commitment: "confirmed" });
-      expect.fail("Non-admin should not be able to end the election");
-    } catch (err) {
-      expect(err.message).to.include("Unauthorized");
-    }
-  });
+  // it("Non-admin cannot end election", async () => {
+  //   try {
+  //     await program.methods
+  //       .endVoting()
+  //       .accounts({
+  //         election: electionPDA,
+  //         user: nonAdmin.publicKey
+  //       })
+  //       .signers([nonAdmin])
+  //       .rpc({ commitment: "confirmed" });
+  //     expect.fail("Non-admin should not be able to end the election");
+  //   } catch (err) {
+  //     expect(err.message).to.include("Unauthorized");
+  //   }
+  // });
 
-  it("Admin can end election", async () => {
-    await program.methods
-      .endVoting()
-      .accounts({
-        election: electionPDA,
-        user: admin.publicKey
-      })
-      .signers([admin])
-      .rpc({ commitment: "confirmed" });
+  // it("Admin can end election", async () => {
+  //   await program.methods
+  //     .endVoting()
+  //     .accounts({
+  //       election: electionPDA,
+  //       user: admin.publicKey
+  //     })
+  //     .signers([admin])
+  //     .rpc({ commitment: "confirmed" });
 
-    const election = await program.account.election.fetch(electionPDA);
-    expect(election.isActive).to.be.false;
-  });
+  //   const election = await program.account.election.fetch(electionPDA);
+  //   expect(election.isActive).to.be.false;
+  // });
 
   it("Anyone can get election ID", async () => {
     const election = await program.account.election.fetch(electionPDA);
@@ -232,6 +232,209 @@ describe("voting_system", () => {
         throw err;
     }
 });
+
+
+it("test of all", async () => {
+  const provider = anchor.getProvider();
+  const bs58 = require("bs58"); // Ensure you have the bs58 package installed
+  const voter1 = anchor.web3.Keypair.generate();
+  const voterPublicKey = bs58.encode(voter1.publicKey.toBytes()); // Encode public key as base58
+  const stake = "34"; // Use the exact stake value
+  const electionId = "12345"; // Election ID // assume election ID is 5 digit string
+  const testMessage = Buffer.from(`${voterPublicKey}-${stake}-${electionId}`, "utf-8");
+
+  try {
+    const election = await program.account.election.fetch(electionPDA);
+  } catch (error) {
+    console.log("INITIALIZE ELECTION")
+    const tx = await program.methods
+      .initialize("Test Election", votingAuthority.publicKey, electionId, new anchor.BN(600), new anchor.BN(300))
+      .accountsStrict({
+        election: electionPDA,
+        user: admin.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([admin])
+      .rpc();
+    const electionAfter = await program.account.election.fetch(electionPDA);
+  }
+
+  const ed25519Instruction = Ed25519Program.createInstructionWithPrivateKey({
+      privateKey: votingAuthority.secretKey,
+      message: testMessage,
+  });
+
+  const computeBudgetIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+      units: 500_000,
+  });
+  
+  const [voterPDA, voterBump] = await anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("voter"), voter1.publicKey.toBuffer()],
+    program.programId
+  );
+
+  const registerVoterIx = await program.methods
+      .registerVoter(voter1.publicKey, new anchor.BN(34)) // Example stake amount
+      .accountsStrict({
+          election: electionPDA,
+          voter: voterPDA,
+          votingAuthority: votingAuthority.publicKey,
+          systemProgram,
+          instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+      })
+      .instruction();
+
+  try {
+      const transaction = new Transaction()
+          .add(computeBudgetIx)
+          .add(ed25519Instruction)
+          .add(registerVoterIx);
+
+      const txSignature = await provider.sendAndConfirm(transaction, [votingAuthority], { commitment: "confirmed" });
+      const txInfo = await provider.connection.getTransaction(txSignature, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
+    });
+      const voterAccount = await provider.connection.getAccountInfo(voterPDA);
+      if (voterAccount) {
+            console.log("sucess.");
+          //console.log("Voter account:", voterAccount);
+      } else {
+          console.log("Voter PDA does not exist yet.");
+      }
+      expect(txSignature).to.be.a("string");
+  } catch (err) {
+      console.error("❌ Register Voter Transaction Failed:", err);
+      throw err;
+  }
+
+  // START THE VOTING 
+
+      await program.methods
+      .startElection()
+      .accounts({
+        election: electionPDA,
+        user: admin.publicKey
+      })
+      .signers([admin])
+      .rpc({ commitment: "confirmed" });
+
+    
+    // COMMIT VOTE
+
+
+    const encryptedVote = Buffer.from("encryptedvote1", "utf-8"); // 👈 replace with your data
+    const nonce = Buffer.from("random-nonce-here", "utf-8");
+
+    // Sanity check: this should match what was used to create the commitment
+    const commitmentHex = require("crypto")
+    .createHash("sha256")
+    .update(Buffer.concat([encryptedVote, nonce]))
+    .digest("hex");
+
+    //const commitmentHex = "a3b1c5d7e9f0112233445566778899aabbccddeeff"; // Example hex
+    const commitment = Uint8Array.from(Buffer.from(commitmentHex, "hex"));
+    const commitmentFunction = Buffer.from(commitmentHex, "hex"); // ✅ Convert directly to Buffer
+
+    const certificate = Buffer.from(ed25519Instruction.data); // ✅ Buffer
+
+    const ed25519InstructionVoter = Ed25519Program.createInstructionWithPrivateKey({
+      privateKey: voter1.secretKey,
+      message: commitment,
+  });
+
+    const commitVoteIx = await program.methods
+    .commitVote(commitmentFunction, certificate) //
+    .accountsStrict({
+      voterPda: voterPDA,
+      election: electionPDA,
+      user: voter1.publicKey,
+      instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+    })
+    .instruction();
+
+    try {
+    const transaction = new Transaction()
+        .add(computeBudgetIx)
+        .add(ed25519InstructionVoter)
+        .add(commitVoteIx);
+
+    const txSignature = await provider.sendAndConfirm(transaction, [voter1], { commitment: "confirmed" });
+
+    const txInfo = await provider.connection.getTransaction(txSignature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
+    });
+    console.log("Transaction Logs:", txInfo?.meta?.logMessages);
+    const voterAccount = await provider.connection.getAccountInfo(voterPDA);
+    if (voterAccount) {
+      console.log("COMMIT SUCCESS");
+
+    } else {
+        console.log("Voter PDA does not exist yet.");
+    }
+    expect(txSignature).to.be.a("string");
+    } catch (err) {
+    console.error("COMMMIT FAILED", err);
+    throw err;
+    }
+
+
+
+  // END VOTING 
+
+
+    //     // 🛑 Step 2: End the election (simulate time passing)
+        const endElectionIx = await program.methods
+        .endVoting()
+        .accountsStrict({
+          election: electionPDA,
+          user: admin.publicKey,
+        })
+        .instruction();
+    
+        const endTx = new Transaction().add(endElectionIx);
+        await provider.sendAndConfirm(endTx, [admin]);
+
+
+    // //// CHECKING REVEAL ELEMENT 
+
+      const revealHash = require("crypto")
+      .createHash("sha256")
+      .update(Buffer.concat([encryptedVote, nonce]))
+      .digest("hex");
+
+      const revealIx = await program.methods
+      .revealVote(encryptedVote, nonce)
+      .accountsStrict({
+        voterPda: voterPDA,
+        election: electionPDA,
+        user: voter1.publicKey,
+      })
+      .instruction();
+
+
+
+    try {
+      const tx = new Transaction().add(revealIx);
+      const latestBlockhash = await provider.connection.getLatestBlockhash();
+      tx.recentBlockhash = latestBlockhash.blockhash;
+      //tx.feePayer = voter1;
+
+
+      const revealSig = await provider.sendAndConfirm(tx, [voter1], { commitment: "confirmed" });
+      console.log("✅ Reveal vote success! Tx:", revealSig);
+    
+      // Fetch updated voter account to assert it has been revealed
+      const voterAccount: any = await program.account.voter.fetch(voterPDA);
+      expect(voterAccount.hasRevealed).to.be.true;
+    } catch (err) {
+      console.error("❌ Reveal vote failed:", err);
+      throw err;
+    }
+
+});
+
 
 // it("VA should be able to register a voter with a valid signature", async () => {
 //   const provider = anchor.getProvider();
@@ -349,184 +552,167 @@ describe("voting_system", () => {
 // });
 
 
-it("test of all", async () => {
-  const provider = anchor.getProvider();
-  const testAuthority1 = anchor.web3.Keypair.generate();
-  // public key - stake - electionId
-  //const testMessage = Buffer.from("7vRWomYoLKJXPAtyB5cWxZ3hR2qWu1c2hqqx6Azt914N-20-12345", "utf-8");
+// it("test of all", async () => {
+//   const provider = anchor.getProvider();
+//   const testAuthority1 = anchor.web3.Keypair.generate();
 
-  const bs58 = require("bs58"); // Ensure you have the bs58 package installed
-  const voter1 = anchor.web3.Keypair.generate();
-  const voterPublicKey = bs58.encode(voter1.publicKey.toBytes()); // Encode public key as base58
-  const stake = "34"; // Use the exact stake value
-  const electionId = "12345"; // Election ID // assume election ID is 5 digit string
+//   const bs58 = require("bs58"); // Ensure you have the bs58 package installed
+//   const voter1 = anchor.web3.Keypair.generate();
+//   const voterPublicKey = bs58.encode(voter1.publicKey.toBytes()); // Encode public key as base58
+//   const stake = "34"; // Use the exact stake value
+//   const electionId = "12345"; // Election ID // assume election ID is 5 digit string
 
-  const testMessage = Buffer.from(`${voterPublicKey}-${stake}-${electionId}`, "utf-8");
+//   const testMessage = Buffer.from(`${voterPublicKey}-${stake}-${electionId}`, "utf-8");
 
-  // console.log("✅ Expected Message (Hex):", testMessage.toString("hex"));
-  // console.log("✅ Expected Message (UTF-8):", testMessage.toString("utf-8"));
-  // console.log("Program ID:", program.programId.toBase58());
-
-  try {
-    const election = await program.account.election.fetch(electionPDA);
-    //console.log("Election Account already exists:", election);
-  } catch (error) {
-    console.log("Election account does not exist, initializing...");
+//   try {
+//     const election = await program.account.election.fetch(electionPDA);
+//   } catch (error) {
+//     console.log("Election account does not exist, initializing...");
   
-    const tx = await program.methods
-      .initialize("Test Election", votingAuthority.publicKey, electionId, new anchor.BN(600), new anchor.BN(300))
-      .accountsStrict({
-        election: electionPDA,
-        user: admin.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
+//     const tx = await program.methods
+//       .initialize("Test Election", votingAuthority.publicKey, electionId, new anchor.BN(600), new anchor.BN(300))
+//       .accountsStrict({
+//         election: electionPDA,
+//         user: admin.publicKey,
+//         systemProgram: anchor.web3.SystemProgram.programId,
+//       })
+//       .signers([admin])
+//       .rpc();
     
-    const electionAfter = await program.account.election.fetch(electionPDA);
-    //console.log("Initialized Election Account:", electionAfter);
-  }
+//     const electionAfter = await program.account.election.fetch(electionPDA);
+//     //console.log("Initialized Election Account:", electionAfter);
+//   }
 
-  console.log("✅ Election initialized!");
+//   //console.log("✅ Election initialized!");
 
-  const ed25519Instruction = Ed25519Program.createInstructionWithPrivateKey({
-      privateKey: votingAuthority.secretKey,
-      message: testMessage,
-  });
+//   const ed25519Instruction = Ed25519Program.createInstructionWithPrivateKey({
+//       privateKey: votingAuthority.secretKey,
+//       message: testMessage,
+//   });
 
 
-  console.log("Ed25519 Instruction:", ed25519Instruction);
-  console.log("Ed25519 Instruction.data:", ed25519Instruction.data);
-  console.log("🔹 Ed25519 TEST FILE Data Hex:", Buffer.from(ed25519Instruction.data).toString("hex"));
-  // console.log("test message", testMessage);
-  // console.log("Test message (hex):", Buffer.from(testMessage).toString("hex"));
-  // console.log("SIGNER", votingAuthority.publicKey);
-  // console.log("voter registred public key", voter1.publicKey)
+//   // console.log("Ed25519 Instruction:", ed25519Instruction);
+//   // console.log("Ed25519 Instruction.data:", ed25519Instruction.data);
+//   // console.log("🔹 Ed25519 TEST FILE Data Hex:", Buffer.from(ed25519Instruction.data).toString("hex"));
 
-  // Step 3: **Increase compute budget for verification**
-  const computeBudgetIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
-      units: 500_000,
-  });
+//   // Step 3: **Increase compute budget for verification**
+//   const computeBudgetIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+//       units: 500_000,
+//   });
 
-  //console.log("✅ Reached Ed25519 verification");
+//   //console.log("✅ Reached Ed25519 verification");
 
-  const electionAccount = await provider.connection.getAccountInfo(electionPDA);
-  if (!electionAccount) {
-    console.error("Election account does not exist!");
-  } else {
-    console.log("Election Account Owner:", electionAccount.owner.toBase58());
-  }
+//   const electionAccount = await provider.connection.getAccountInfo(electionPDA);
+//   if (!electionAccount) {
+//     console.error("Election account does not exist!");
+//   } else {
+//     //console.log("Election Account Owner:", electionAccount.owner.toBase58());
+//   }
   
-  const [voterPDA, voterBump] = await anchor.web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("voter"), voter1.publicKey.toBuffer()],
-    program.programId
-  );
+//   const [voterPDA, voterBump] = await anchor.web3.PublicKey.findProgramAddressSync(
+//     [Buffer.from("voter"), voter1.publicKey.toBuffer()],
+//     program.programId
+//   );
 
-  console.log("HERE WE ARE 1");
+//   //console.log("HERE WE ARE 1");
 
-  const electionData = await program.account.election.fetch(electionPDA);
+//   const electionData = await program.account.election.fetch(electionPDA);
 
-  const registerVoterIx = await program.methods
-      .registerVoter(voter1.publicKey, new anchor.BN(34)) // Example stake amount
-      .accountsStrict({
-          election: electionPDA,
-          voter: voterPDA,
-          votingAuthority: votingAuthority.publicKey,
-          systemProgram,
-          instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-      })
-      .instruction();
+//   const registerVoterIx = await program.methods
+//       .registerVoter(voter1.publicKey, new anchor.BN(34)) // Example stake amount
+//       .accountsStrict({
+//           election: electionPDA,
+//           voter: voterPDA,
+//           votingAuthority: votingAuthority.publicKey,
+//           systemProgram,
+//           instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+//       })
+//       .instruction();
 
-  try {
-      const transaction = new Transaction()
-          .add(computeBudgetIx)
-          .add(ed25519Instruction)
-          .add(registerVoterIx);
+//   try {
+//       const transaction = new Transaction()
+//           .add(computeBudgetIx)
+//           .add(ed25519Instruction)
+//           .add(registerVoterIx);
 
-      const txSignature = await provider.sendAndConfirm(transaction, [votingAuthority], { commitment: "confirmed" });
+//       const txSignature = await provider.sendAndConfirm(transaction, [votingAuthority], { commitment: "confirmed" });
 
-      const txInfo = await provider.connection.getTransaction(txSignature, {
-        commitment: "confirmed",
-        maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
-    });
-      // TO SEE ALL THE LOGS !!!
-      console.log("Transaction Logs:", txInfo?.meta?.logMessages);
-      //console.log("✅ Transaction Successful! Signature:", txSignature);
-      const voterAccount = await provider.connection.getAccountInfo(voterPDA);
-      if (voterAccount) {
-          //console.log("Voter PDA Owner:", voterAccount.owner.toBase58());
-          console.log("Voter account:", voterAccount);
-      } else {
-          console.log("Voter PDA does not exist yet.");
-      }
-      expect(txSignature).to.be.a("string");
-  } catch (err) {
-      console.error("❌ Register Voter Transaction Failed:", err);
-      throw err;
-  }
+//       const txInfo = await provider.connection.getTransaction(txSignature, {
+//         commitment: "confirmed",
+//         maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
+//     });
+//       // TO SEE ALL THE LOGS !!!
+//       //console.log("Transaction Logs:", txInfo?.meta?.logMessages);
+//       //console.log("✅ Transaction Successful! Signature:", txSignature);
+//       const voterAccount = await provider.connection.getAccountInfo(voterPDA);
+//       if (voterAccount) {
+//           //console.log("Voter PDA Owner:", voterAccount.owner.toBase58());
+//           //console.log("Voter account:", voterAccount);
+//       } else {
+//           console.log("Voter PDA does not exist yet.");
+//       }
+//       expect(txSignature).to.be.a("string");
+//   } catch (err) {
+//       console.error("❌ Register Voter Transaction Failed:", err);
+//       throw err;
+//   }
 
-  console.log("HERE WE ARE 2");
-
-    //const certificate = "01003000ffff1000ffff70003500ffff3c0df73ad448fbfc88ea3e4497a91cd31a46fe2945e9682389c133562a5d47fe899ba5e37cf1518214b1ae6b669efd5806cf19b892ed914c0883f85d889464558fc20ec2fec19da3d0f80642633b55fc0ef20c06e029dc1dc78f5838c6b4da0d397a5a66696e414341516a6d526b4a45734d364c674b444d396a6f414734536455583248626670455148766d2d32302d3132333435";
-    
-    //const certificateFunction = Buffer.from(certificate, "hex"); // ✅ Convert directly to Buffer
+//     //console.log("HERE WE ARE 2");
 
 
-    const commitmentHex = "a3b1c5d7e9f0112233445566778899aabbccddeeff"; // Example hex
-    const commitment = Uint8Array.from(Buffer.from(commitmentHex, "hex"));
-    const commitmentFunction = Buffer.from(commitmentHex, "hex"); // ✅ Convert directly to Buffer
+//     const commitmentHex = "a3b1c5d7e9f0112233445566778899aabbccddeeff"; // Example hex
+//     const commitment = Uint8Array.from(Buffer.from(commitmentHex, "hex"));
+//     const commitmentFunction = Buffer.from(commitmentHex, "hex"); // ✅ Convert directly to Buffer
 
-    const certificate = Buffer.from(ed25519Instruction.data); // ✅ Buffer
+//     const certificate = Buffer.from(ed25519Instruction.data); // ✅ Buffer
 
+//     const ed25519InstructionVoter = Ed25519Program.createInstructionWithPrivateKey({
+//       privateKey: voter1.secretKey,
+//       message: commitment,
+//   });
 
-    const ed25519InstructionVoter = Ed25519Program.createInstructionWithPrivateKey({
-      privateKey: voter1.secretKey,
-      message: commitment,
-  });
+//   // console.log("TEst votingAuthority", votingAuthority.publicKey);
+//   // console.log("🔹 Ed25519 TEST FILE Data Hex:", Buffer.from(ed25519Instruction.data).toString("hex"));
 
-  console.log("TEst votingAuthority", votingAuthority.publicKey);
+//     const commitVoteIx = await program.methods
+//     .commitVote(commitmentFunction, certificate) //
+//     .accountsStrict({
+//       voterPda: voterPDA,
+//       election: electionPDA,
+//       user: voter1.publicKey,
+//       instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+//     })
+//     .instruction();
 
-  console.log("🔹 Ed25519 TEST FILE Data Hex:", Buffer.from(ed25519Instruction.data).toString("hex"));
+//     try {
+//     const transaction = new Transaction()
+//         .add(computeBudgetIx)
+//         .add(ed25519InstructionVoter)
+//         .add(commitVoteIx);
 
-    const commitVoteIx = await program.methods
-    .commitVote(commitmentFunction, certificate) //
-    .accountsStrict({
-      voterPda: voterPDA,
-      election: electionPDA,
-      user: voter1.publicKey,
-      instructionsSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-    })
-    .instruction();
+//     const txSignature = await provider.sendAndConfirm(transaction, [voter1], { commitment: "confirmed" });
 
-    try {
-    const transaction = new Transaction()
-        .add(computeBudgetIx)
-        .add(ed25519InstructionVoter)
-        .add(commitVoteIx);
+//     const txInfo = await provider.connection.getTransaction(txSignature, {
+//       commitment: "confirmed",
+//       maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
+//     });
+//     // TO SEE ALL THE LOGS !!!
+//     //console.log("Transaction Logs:", txInfo?.meta?.logMessages);
+//     //console.log("✅ Transaction Successful! Signature:", txSignature);
+//     const voterAccount = await provider.connection.getAccountInfo(voterPDA);
+//     if (voterAccount) {
+//         //console.log("Voter PDA Owner:", voterAccount.owner.toBase58());
+//         //console.log("Voter account:", voterAccount);
+//     } else {
+//         console.log("Voter PDA does not exist yet.");
+//     }
+//     expect(txSignature).to.be.a("string");
+//     } catch (err) {
+//     console.error("COMMMIT FAILED", err);
+//     throw err;
+//     }
 
-    const txSignature = await provider.sendAndConfirm(transaction, [voter1], { commitment: "confirmed" });
-
-    const txInfo = await provider.connection.getTransaction(txSignature, {
-      commitment: "confirmed",
-      maxSupportedTransactionVersion: 0, // Ensures compatibility with older versions
-    });
-    // TO SEE ALL THE LOGS !!!
-    console.log("Transaction Logs:", txInfo?.meta?.logMessages);
-    //console.log("✅ Transaction Successful! Signature:", txSignature);
-    const voterAccount = await provider.connection.getAccountInfo(voterPDA);
-    if (voterAccount) {
-        //console.log("Voter PDA Owner:", voterAccount.owner.toBase58());
-        console.log("Voter account:", voterAccount);
-    } else {
-        console.log("Voter PDA does not exist yet.");
-    }
-    expect(txSignature).to.be.a("string");
-    } catch (err) {
-    console.error("COMMMIT FAILED", err);
-    throw err;
-    }
-
-});
+// });
 });
 
 

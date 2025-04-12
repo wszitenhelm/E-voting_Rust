@@ -3,7 +3,7 @@ use crate::state::{Election, Voter};
 use crate::verify_certificate::verify_certificate;
 use crate::verify_voter_signature::verify_voter_signature;
 use crate::{VerifyVoterSignature, VerifyVoterSignatureBumps};
-//use crate::errors::ErrorCode;
+use crate::errors::ErrorCode;
 
 #[derive(Accounts)]
 pub struct CommitVote<'info> {
@@ -25,6 +25,8 @@ pub fn commit_vote(ctx: Context<CommitVote>, commitment: Vec<u8>, certificate: V
 
     let voter_commiment = &commitment;
     let voting_authority = ctx.accounts.election.voting_authority; // Immutable borrow
+
+    require!(election.is_active, ErrorCode::VotingNotActive);
 
     //let expected_signer = voting_authority;
 
@@ -48,9 +50,9 @@ pub fn commit_vote(ctx: Context<CommitVote>, commitment: Vec<u8>, certificate: V
     // Append election ID
     expected_message.extend_from_slice(election.election_id.as_bytes());
 
-    msg!("PRINING IN COMMIT VOTE");
-    msg!("voting authority {:?}", voting_authority);
-    msg!("expected message {:?}", expected_message);
+    // msg!("PRINING IN COMMIT VOTE");
+    // msg!("voting authority {:?}", voting_authority);
+    // msg!("expected message {:?}", expected_message);
     
     verify_certificate(&voting_authority, &expected_message, certificate)?;
 
