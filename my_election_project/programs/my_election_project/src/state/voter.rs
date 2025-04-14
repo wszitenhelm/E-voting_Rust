@@ -15,6 +15,9 @@ pub struct Voter {
     pub vote: Option<bool>, // "Yes" = true, "No" = false, None = not voted
 
     pub voter_stake: u64,
+
+    pub reveal_timestamp: Option<i64>, // Save exact time when revealed
+    pub reveal_accepted: bool,
 }
 
 impl Voter {

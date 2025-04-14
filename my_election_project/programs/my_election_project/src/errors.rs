@@ -20,6 +20,15 @@ pub enum ErrorCode {
     #[msg("Voting is still active.")]
     ElectionStillActive,
 
+    #[msg("Reveal Period ended")]
+    RevealPeriodEnded,
+
+    #[msg("Reveal time not set")]
+    RevealEndTimeNotSet,
+
+    #[msg("Reveal phase not started")]
+    RevealPhaseNotStarted,
+
     #[msg("You are not authorized to perform this action.")]
     Unauthorized,
 

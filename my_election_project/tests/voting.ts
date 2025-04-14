@@ -5,7 +5,6 @@ import { expect } from "chai";
 import fs from "fs";
 import nacl from "tweetnacl";
 import { Transaction, Ed25519Program, TransactionInstruction, Keypair, PublicKey } from "@solana/web3.js";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 function signMessage(signer: Keypair, message: Buffer){
   const messageUint8 = new Uint8Array(message);
@@ -248,7 +247,7 @@ it("test of all", async () => {
   } catch (error) {
     console.log("INITIALIZE ELECTION")
     const tx = await program.methods
-      .initialize("Test Election", votingAuthority.publicKey, electionId, new anchor.BN(600), new anchor.BN(300))
+      .initialize("Test Election", votingAuthority.publicKey, electionId, new anchor.BN(1), new anchor.BN(30))
       .accountsStrict({
         election: electionPDA,
         user: admin.publicKey,
@@ -394,7 +393,7 @@ it("test of all", async () => {
         .instruction();
     
         const endTx = new Transaction().add(endElectionIx);
-        await provider.sendAndConfirm(endTx, [admin]);
+        await provider.sendAndConfirm(endTx, [admin], { commitment: "confirmed" });
 
 
     // //// CHECKING REVEAL ELEMENT 
@@ -414,17 +413,15 @@ it("test of all", async () => {
       .instruction();
 
 
-
     try {
       const tx = new Transaction().add(revealIx);
       const latestBlockhash = await provider.connection.getLatestBlockhash();
       tx.recentBlockhash = latestBlockhash.blockhash;
-      //tx.feePayer = voter1;
-
 
       const revealSig = await provider.sendAndConfirm(tx, [voter1], { commitment: "confirmed" });
       console.log("✅ Reveal vote success! Tx:", revealSig);
-    
+      
+
       // Fetch updated voter account to assert it has been revealed
       const voterAccount: any = await program.account.voter.fetch(voterPDA);
       expect(voterAccount.hasRevealed).to.be.true;

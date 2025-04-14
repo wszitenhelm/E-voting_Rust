@@ -85,6 +85,7 @@ pub fn register_voter(ctx: Context<RegisterVoter>, voter_public_key: Pubkey, vot
         &expected_signer,
         &expected_message
     )?;
+
     // Register the voter after verification
     let voter = &mut ctx.accounts.voter;
     voter.voter_address = voter_public_key;
@@ -93,6 +94,7 @@ pub fn register_voter(ctx: Context<RegisterVoter>, voter_public_key: Pubkey, vot
     voter.commitment = Vec::new();
     voter.voter_stake = voter_stake;
     voter.encrypted_vote = None;
+    voter.reveal_accepted = false;
 
     msg!("Voter's stake: {:?}", voter.voter_stake);
 
