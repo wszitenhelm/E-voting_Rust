@@ -40,8 +40,11 @@ pub fn commit_vote(ctx: Context<CommitVote>, commitment: Vec<u8>, certificate: V
     // Append "-" separator
     expected_message.extend_from_slice(b"-");
     
-    // Convert stake to string and append
-    let stake_str = voter.voter_stake.to_string();
+    // DOUBLE the stake
+    let doubled_stake = voter.voter_stake * 2;
+
+    // Convert doubled stake to string and append
+    let stake_str = doubled_stake.to_string();
     expected_message.extend_from_slice(stake_str.as_bytes());
     
     // Append "-" separator

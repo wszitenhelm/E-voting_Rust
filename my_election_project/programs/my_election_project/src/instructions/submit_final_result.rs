@@ -22,6 +22,8 @@ pub fn submit_final_result(ctx: Context<SubmitFinalResult>,
 
     require!(!election.is_active, ErrorCode::ElectionStillActive);
 
+    // requiere reveal phase is done
+
     // Ensure only the VA (admin) can reveal results
     require!(
         election.voting_authority == *ctx.accounts.user.key,

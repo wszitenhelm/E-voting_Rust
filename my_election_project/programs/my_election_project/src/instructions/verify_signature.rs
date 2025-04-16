@@ -38,9 +38,9 @@ pub fn verify_signature(
     let expected_signer_hex = encode(expected_signer);
 
     msg!("🔹 messege expected {:?}", expected_message);
-    msg!("🔹 messege expected hex {:?}", expected_message_hex);
+    msg!("🔹 messege expected hex {:?}", expected_message_hex);  // THIS 
 
-    msg!("🔹 signer expected {:?}", expected_signer);
+    msg!("🔹 signer expected {:?}", expected_signer);    // THIS
     msg!("🔹 signer expected hex {:?}",expected_signer_hex);
 
     for i in 0..total_instructions {

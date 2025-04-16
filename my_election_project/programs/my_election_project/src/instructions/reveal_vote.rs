@@ -21,28 +21,28 @@ pub fn reveal_vote(ctx: Context<RevealVote>, encrypted_vote: Vec<u8>, nonce: Vec
     require!(voter.commitment != [0; 32], ErrorCode::VoteNotCommitted);
     require!(!voter.has_revealed, ErrorCode::VoteAlreadyRevealed);
 
-    let clock = Clock::get()?;
-
-    msg!("Reveal end time is: {:?}", election.reveal_end_time);
-
-    // Check if reveal is within the allowed time
-    if let Some(reveal_end_time) = election.reveal_end_time {
-        if clock.unix_timestamp > reveal_end_time {
-            msg!("Reveal was too late: {}", clock.unix_timestamp);
-            voter.reveal_accepted = false;
-        } else {
-            voter.reveal_accepted = true;
-        }
-    } else {
-        return err!(ErrorCode::RevealPhaseNotStarted);
-    }
-
     let vote_copy = encrypted_vote.clone(); // If you want to use it multiple times
 
     let computed_hash = hash(&[vote_copy, nonce].concat());
 
     // Compare computed hash with committed one
     require!(computed_hash.to_bytes() == voter.commitment.as_slice(), ErrorCode::InvalidVoteReveal);
+
+    let clock = Clock::get()?;
+
+    msg!("Reveal end time is: {:?}", election.reveal_end_time);
+
+    // Check if reveal is within the allowed time
+    // if let Some(reveal_end_time) = election.reveal_end_time {
+    //     if clock.unix_timestamp > reveal_end_time {
+    //         msg!("Reveal was too late: {}", clock.unix_timestamp);
+    //         voter.reveal_accepted = false;
+    //     } else {
+    //         voter.reveal_accepted = true;
+    //     }
+    // } else {
+    //     return err!(ErrorCode::RevealPhaseNotStarted);
+    // }
 
     // Mark vote as revealed
     voter.encrypted_vote = Some(encrypted_vote);
