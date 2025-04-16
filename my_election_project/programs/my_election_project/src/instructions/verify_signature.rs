@@ -13,21 +13,10 @@ pub struct VerifySignature<'info> {
 }
 
 pub fn verify_signature(
-    //accounts: &[AccountInfo],
     ctx: Context<VerifySignature>,
     expected_signer: &Pubkey,
     expected_message: &[u8],
 ) -> Result<()> {
-    // msg!("Starting signature verification...");
-
-    // msg!("🔹 VERIFY_SIGANTURE");
-    // msg!("🔹 messege expected {:?}", expected_message);
-    // msg!("🔹 messege expected hex {:?}", hex::encode(expected_message));
-
-    // msg!("🔹 signer expected {:?}", expected_signer);
-    // msg!("🔹 signer expected hex {:?}", hex::encode(expected_signer));
-
-
     let instruction_sysvar = &ctx.accounts.instructions;
     let instruction_data = instruction_sysvar.try_borrow_data()?;
     let total_instructions = instruction_data.len() / 4; // Each instruction index is 4 bytes
@@ -37,37 +26,38 @@ pub fn verify_signature(
     let expected_message_hex = encode(expected_message);
     let expected_signer_hex = encode(expected_signer);
 
-    msg!("🔹 messege expected {:?}", expected_message);
-    msg!("🔹 messege expected hex {:?}", expected_message_hex);  // THIS 
+    // Debugging output for expected values
+    msg!("🔹 Expected message: {:?}", expected_message);
+    msg!("🔹 Expected message (hex): {:?}", expected_message_hex);
+    msg!("🔹 Expected signer: {:?}", expected_signer);
+    msg!("🔹 Expected signer (hex): {:?}", expected_signer_hex);
 
-    msg!("🔹 signer expected {:?}", expected_signer);    // THIS
-    msg!("🔹 signer expected hex {:?}",expected_signer_hex);
-
+    // Iterate through the instructions to find a match
     for i in 0..total_instructions {
         if let Ok(ix) = load_instruction_at_checked(i as usize, instruction_sysvar) {
             msg!("🔹 Instruction {}: {:?}", i, ix);
             msg!("🔹 Instruction {} (Hex): {}", i, encode(&ix.data));
-            let instruction_hex = encode(&ix.data);
-            // OPTIMIZE SO IT DOESN'T CHECK ALL INSTRUCTIONS! instruction lenght ?
-            if instruction_hex.contains(&expected_message_hex) && instruction_hex.contains(&expected_signer_hex) {
-                //let first_32: String = instruction_hex.chars().take(32).collect(); // Each byte is represented by 2 hex characters
-                //let first_32: &str = &instruction_hex[..32]; // First 32 bytes (64 hex chars)
-                let signer: &str = &instruction_hex[32..96]; // Bytes 33-96 (128 hex chars)
-                let message: &str = &instruction_hex[224..330]; // Bytes 33-96 (128 hex chars)
 
+            let instruction_hex = encode(&ix.data);
+            
+            // Ensure that instruction is long enough before trying to slice it
+            if instruction_hex.len() >= 330 {
+                let signer: &str = &instruction_hex[32..96]; // Bytes 33-96 (128 hex chars)
+                let message: &str = &instruction_hex[224..330]; // Bytes 225-330 (128 hex chars)
+
+                // Check if the expected signer and message match
                 if expected_message_hex == message && expected_signer_hex == signer {
-                    msg!("✅ WOHOOOOOO");
                     msg!("✅ Signature verification passed.");
                     return Ok(());
                 }
+            } else {
+                msg!("❌ Instruction too short to contain valid signer/message data.");
             }
-        } 
-        else {
+        } else {
             msg!("❌ Failed to load instruction at index {}", i);
         }
     }
 
     msg!("❌ No valid Ed25519 instruction found matching the expected signer and message.");
     Err(ErrorCode::InvalidInstructionData.into())
-
 }

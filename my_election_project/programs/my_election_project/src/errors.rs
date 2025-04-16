@@ -75,5 +75,11 @@ pub enum ErrorCode {
     NotFound,
 
     #[msg("Invalid certificate passed.")]
-    InvalidCertificate
+    InvalidCertificate,
+
+    #[msg("Overflow occurred during arithmetic operation.")]
+    Overflow,
+
+    #[msg("Value of the stake too big.")]
+    ValueTooLarge,
 }

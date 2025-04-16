@@ -86,6 +86,10 @@ pub fn register_voter(ctx: Context<RegisterVoter>, voter_public_key: Pubkey, vot
         &expected_message
     )?;
 
+    if voter_stake > u64::MAX {
+        return Err(ErrorCode::ValueTooLarge.into());
+    }
+
     // Register the voter after verification
     let voter = &mut ctx.accounts.voter;
     voter.voter_address = voter_public_key;

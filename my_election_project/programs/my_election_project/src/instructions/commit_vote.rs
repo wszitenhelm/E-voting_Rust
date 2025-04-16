@@ -41,7 +41,11 @@ pub fn commit_vote(ctx: Context<CommitVote>, commitment: Vec<u8>, certificate: V
     expected_message.extend_from_slice(b"-");
     
     // DOUBLE the stake
-    let doubled_stake = voter.voter_stake * 2;
+    
+    let doubled_stake = match voter.voter_stake.checked_mul(2) {
+        Some(stake) => stake,
+        None => return Err(ErrorCode::Overflow.into()),
+    };
 
     // Convert doubled stake to string and append
     let stake_str = doubled_stake.to_string();

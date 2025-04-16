@@ -25,7 +25,12 @@ pub fn start_election(ctx: Context<StartElection>) -> Result<()> {
     }
 
     let clock = Clock::get()?;
-    election.commit_end_time = Some(clock.unix_timestamp + election.commit_duration as i64);
+
+    // Ensure there is no overflow when calculating commit_end_time
+    let commit_end_time = clock.unix_timestamp.checked_add(election.commit_duration as i64)
+    .ok_or(ErrorCode::Overflow)?; // Returns error if overflow occurs
+
+    election.commit_end_time = Some(commit_end_time);
 
     election.is_active = true;
     Ok(())

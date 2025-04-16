@@ -40,8 +40,15 @@ pub fn submit_final_result(ctx: Context<SubmitFinalResult>,
     //verify_signature(&ctx.accounts.instructions_sysvar, &election.voting_authority, &message)?;
 
     // Store final vote counts
-    election.yes_votes = yes_votes;
-    election.no_votes = no_votes;
+
+    election.yes_votes = election.yes_votes
+    .checked_add(yes_votes)
+    .ok_or(ErrorCode::Overflow)?;
+
+    election.no_votes = election.no_votes
+        .checked_add(no_votes)
+        .ok_or(ErrorCode::Overflow)?;
+
 
     Ok(())
 }
