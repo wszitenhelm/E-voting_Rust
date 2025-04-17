@@ -13,6 +13,7 @@ pub struct Election {
     pub voting_authority: Pubkey, // Authority responsible for managing voting
 
     pub va_encryption_key: Pubkey,
+    pub va_decryption_key: Option<String>,
 
     // Direct vote counters
     pub yes_votes: u64,        // Count of "Yes" votes

@@ -23,6 +23,9 @@ pub enum ErrorCode {
     #[msg("Reveal Period ended")]
     RevealPeriodEnded,
 
+    #[msg("Reveal Phase still active")]
+    RevealPhaseStillActive,
+
     #[msg("Reveal time not set")]
     RevealEndTimeNotSet,
 
@@ -61,6 +64,9 @@ pub enum ErrorCode {
 
     #[msg("Encryption key already set.")]
     EncryptionKeyAlreadySet,
+
+    #[msg("Decryption key already set.")]
+    DecryptionKeyAlreadyReleased,
 
     #[msg("Invalid Instruction Data.")]
     InvalidInstructionData,

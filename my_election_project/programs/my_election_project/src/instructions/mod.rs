@@ -12,6 +12,7 @@ pub mod get_winner;
 pub mod set_encryption_key;
 pub mod verify_certificate;
 pub mod verify_voter_signature;
+pub mod release_decryption_key;
 
 pub use initialize::*;
 pub use register_voter::*;
@@ -27,3 +28,4 @@ pub use get_winner::*;
 pub use set_encryption_key::*;
 pub use verify_certificate::*;
 pub use verify_voter_signature::*;
+pub use release_decryption_key::*;
