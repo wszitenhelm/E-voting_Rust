@@ -37,8 +37,10 @@ pub fn reveal_vote(ctx: Context<RevealVote>, encrypted_vote: Vec<u8>, nonce: Vec
     //     if clock.unix_timestamp > reveal_end_time {
     //         msg!("Reveal was too late: {}", clock.unix_timestamp);
     //         voter.reveal_accepted = false;
+    //         msg!("Vote confirmed, but it was too late and will not be accepted.");
     //     } else {
     //         voter.reveal_accepted = true;
+    //         msg!("Vote successfully revealed and accepted.");
     //     }
     // } else {
     //     return err!(ErrorCode::RevealPhaseNotStarted);

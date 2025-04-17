@@ -5,7 +5,7 @@ use crate::instructions::verify_signature;
 
 #[derive(Accounts)]
 pub struct SetEncryptionKey<'info> {
-    #[account(mut)] // Ensure only the admin can modify it
+    #[account(mut)] 
     pub election: Account<'info, Election>,
     #[account(mut, signer)]
     pub user: Signer<'info>,
