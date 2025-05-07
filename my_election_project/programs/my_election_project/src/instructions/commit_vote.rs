@@ -5,6 +5,15 @@ use crate::verify_voter_signature::verify_voter_signature;
 use crate::{VerifyVoterSignature, VerifyVoterSignatureBumps};
 use crate::errors::ErrorCode;
 
+// Define an event to be emitted when the vote is committed successfully
+#[event]
+pub struct VoteCommitted {
+    pub voter: Pubkey,
+    pub vote_stake: u64,
+    pub message: String,
+}
+
+
 #[derive(Accounts)]
 pub struct CommitVote<'info> {
     #[account(mut)]
@@ -84,6 +93,19 @@ pub fn commit_vote(ctx: Context<CommitVote>, commitment: Vec<u8>, certificate: V
     // Step 3: Update the Voter account with the commitment and other fields
     voter.commitment = voter_commiment.to_vec();
     voter.has_committed = true; // Mark that the voter has committed their vote
+
+    
+    // Define message for the event
+    let message = format!("Vote committed successfully for voter: {:?}", user.key());
+
+    // Emit the event
+    emit!(VoteCommitted {
+        voter: voter.key(),
+        vote_stake: doubled_stake, // Use the doubled stake here
+        message,
+    });
+
+
 
     msg!("Vote committed successfully for voter: {:?}", user.key());
     Ok(())
